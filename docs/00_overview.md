@@ -1,9 +1,9 @@
 # Mid-Level Data Engineer Assessment (Local Only)
 
 This assessment tests your ability to ingest, transform, model, and visualize data using a **local-only toolchain**:
-
-- Python (3.10+)
-- DuckDB
+## <atyagi> Installations done 1/10/2025 2:00 PM
+- Python (3.10+)            
+- DuckDB 
 - Parquet & Delta (local lake)
 - dbt-duckdb
 - Power BI Desktop

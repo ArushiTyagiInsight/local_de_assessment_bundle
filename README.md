@@ -343,12 +343,4 @@ git push origin main
 
 **Important:** Your commit history is part of the evaluation - it demonstrates your development process, problem-solving approach, and professional Git practices.
 
-## Time Expectation
-
-This assessment is designed to take 6-10 hours for a mid-level data engineer. Budget your time across:
-- 2-3 hours: Data generation and Bronze ingestion
-- 2-3 hours: dbt Silver/Gold transformations
-- 1-2 hours: Power BI dashboard
-- 1-2 hours: Testing, documentation, and polish
-
 Good luck!
