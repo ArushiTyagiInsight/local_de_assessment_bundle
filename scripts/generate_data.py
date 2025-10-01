@@ -137,8 +137,7 @@ def main():
             else:
                 disc_dt = ''
             f.write(f"{i},{sku},{name},{category},{subcategory},{price},{currency},{str(is_discontinued)},{intro_dt.isoformat()},{disc_dt}\n")
-
-
+    
     # Shipments parquet sample
     #tbl = pa.table({
      #   'shipment_id': pa.array(range(1, 10001), type=pa.int64()),
