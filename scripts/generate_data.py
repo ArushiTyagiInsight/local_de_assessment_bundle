@@ -22,8 +22,6 @@ def main():
     args = parse_args()
     random.seed(args.seed); np.random.seed(args.seed)
     out = pathlib.Path(args.out); ensure_dir(out)
-
-    # Minimal sample generation (expand to full volumes per docs)
     fake = Faker('en_AU')
 
     # Generate stores.csv with schema and anomalies
