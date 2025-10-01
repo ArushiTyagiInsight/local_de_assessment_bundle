@@ -78,9 +78,45 @@ def main():
                 address_line1 = ''
             f.write(f"{i},{nk},{fake.first_name()},{fake.last_name()},{email},{phone},{address_line1},,{fake.city().replace(',',' ')},{fake.state_abbr()},{fake.postcode()},AU,{lat:.6f},{lon:.6f},{birth.isoformat()},{join_ts.isoformat()},{str(random.random()<0.15)},{str(random.random()>0.05)}\n")
 
-    products_path = out/'cproducts.csv'
+    # Generate products.csv with the specified schema
+    products_path = out/'products.csv'
+    num_products = 25000
+    categories = ['Electronics', 'Clothing', 'Home', 'Toys', 'Books', 'Beauty']
+    subcategories = {
+        'Electronics': ['Phones', 'Laptops', 'Audio', 'Cameras'],
+        'Clothing': ['Men', 'Women', 'Kids'],
+        'Home': ['Furniture', 'Kitchen', 'Decor'],
+        'Toys': ['Outdoor', 'Educational', 'Board Games'],
+        'Books': ['Fiction', 'Non-Fiction', 'Comics'],
+        'Beauty': ['Skincare', 'Makeup', 'Haircare']
+    }
+    currencies = ['AUD', 'USD', 'EUR']
+    used_skus = set()
     with products_path.open('w', encoding='utf-8') as f:
-        f.write('product_id,natural_key,name,category,subcategory,current_price,currency,introduced_dt,discontinued_dt,is_discontinued')
+        f.write('product_id,sku,name,category,subcategory,current_price,currency,is_discontinued,introduced_dt,discontinued_dt\n')
+        for i in range(1, num_products+1):
+            # Ensure sku is unique and matches SKU-[A-Z0-9]{6}
+            while True:
+                sku = 'SKU-' + rstr.rstr('A-Z0-9', 6)
+                if sku not in used_skus:
+                    used_skus.add(sku)
+                    break
+            name = fake.word().capitalize() + ' ' + fake.word().capitalize()
+            category = random.choice(categories)
+            subcategory = random.choice(subcategories[category])
+            price = round(random.uniform(5, 2000), 4)
+            currency = random.choice(currencies)
+            is_discontinued = random.random() < 0.1
+            intro_dt = date(2015,1,1) + timedelta(days=random.randint(0, 365*8))
+            if is_discontinued:
+                disc_dt = intro_dt + timedelta(days=random.randint(30, 2000))
+                if disc_dt > date.today():
+                    disc_dt = ''
+                else:
+                    disc_dt = disc_dt.isoformat()
+            else:
+                disc_dt = ''
+            f.write(f"{i},{sku},{name},{category},{subcategory},{price:.4f},{currency},{str(is_discontinued)},{intro_dt.isoformat()},{disc_dt}\n")
 
 
     # Shipments parquet sample
