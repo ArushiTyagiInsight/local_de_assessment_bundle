@@ -76,6 +76,26 @@ def main():
             else:
                 close_dt = ''
             f.write(f"{i},{store_code},{name},{channel},{region},{state},{latitude},{longitude},{open_dt.isoformat()},{close_dt}\n")
+    
+    # Generate suppliers.csv with schema
+    suppliers_path = out/'suppliers.csv'
+    num_suppliers = 8000
+    country_codes = ['AU', 'US', 'CN', 'IN', 'DE', 'JP', 'GB', 'FR', 'BR', 'CA']
+    used_supplier_codes = set()
+    with suppliers_path.open('w', encoding='utf-8') as f:
+        f.write('supplier_id,supplier_code,name,country_code,lead_time_days,preferred\n')
+        for i in range(1, num_suppliers+1):
+            # Ensure supplier_code is unique and matches SUP-[A-Z0-9]{6}
+            while True:
+                supplier_code = 'SUP-' + rstr.rstr('[A-Z0-9]{6}')
+                if supplier_code not in used_supplier_codes:
+                    used_supplier_codes.add(supplier_code)
+                    break
+            name = fake.company()
+            country_code = random.choice(country_codes)
+            lead_time_days = random.randint(1, 60)
+            preferred = random.random() < 0.2  # 20% preferred
+            f.write(f"{i},{supplier_code},{name},{country_code},{lead_time_days},{str(preferred)}\n")
 
     # Generate customers.csv with schema and anomalies
     customers_path = out/'customers.csv'
@@ -89,7 +109,7 @@ def main():
     # Generate base unique natural_keys
     natural_keys = []
     while len(natural_keys) < num_unique_keys:
-        key = 'CUST-' + rstr.rstr('A-Z0-9', 8)
+        key = 'CUST-' + rstr.rstr('[A-Z0-9]{8}')
         if key not in natural_keys:  # Ensure uniqueness
             natural_keys.append(key)
     
@@ -158,7 +178,7 @@ def main():
         for i in range(1, num_products+1):
             # Ensure sku is unique and matches SKU-[A-Z0-9]{6}
             while True:
-                sku = 'SKU-' + rstr.rstr('A-Z0-9', 6)
+                sku = 'SKU-' + rstr.rstr('[A-Z0-9]{6}')
                 if sku not in used_skus:
                     used_skus.add(sku)
                     break
