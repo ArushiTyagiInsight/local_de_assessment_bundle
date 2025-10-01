@@ -25,6 +25,61 @@ def main():
 
     # Minimal sample generation (expand to full volumes per docs)
     fake = Faker('en_AU')
+
+    # Generate stores.csv with schema and anomalies
+    stores_path = out/'stores.csv'
+    num_stores = 5000
+    channels = ['Retail', 'Online', 'Franchise']
+    regions = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
+    states = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
+    used_store_codes = set()
+    # Prepare duplicate store_code indices
+    num_duplicates = max(1, int(num_stores * 0.01))  # 1% duplicates
+    duplicate_indices = set(random.sample(range(1, num_stores+1), num_duplicates))
+    duplicate_codes = []
+    # Generate a pool of codes to duplicate
+    for _ in range(num_duplicates):
+        code = 'STORE-' + rstr.rstr('[A-Z0-9]{5}')
+        duplicate_codes.append(code)
+    # Prepare impossible lat/lon indices
+    num_bad_latlon = max(1, int(num_stores * 0.005))  # 0.5% impossible
+    bad_latlon_indices = set(random.sample(range(1, num_stores+1), num_bad_latlon))
+    with stores_path.open('w', encoding='utf-8') as f:
+        f.write('store_id,store_code,name,channel,region,state,latitude,longitude,open_dt,close_dt\n')
+        for i in range(1, num_stores+1):
+            # Duplicate store_code logic
+            if i in duplicate_indices:
+                store_code = random.choice(duplicate_codes)
+            else:
+                while True:
+                    store_code = 'STORE-' + rstr.rstr('[A-Z0-9]{5}')
+                    if store_code not in used_store_codes:
+                        used_store_codes.add(store_code)
+                        break
+            name = fake.company()
+            channel = random.choice(channels)
+            region = random.choice(regions)
+            state = random.choice(states)
+            # Impossible lat/lon logic
+            if i in bad_latlon_indices:
+                latitude = random.choice([-200, 200, 999, -999])
+                longitude = random.choice([-200, 200, 999, -999])
+            else:
+                latitude = round(-44 + random.random()*10, 6)
+                longitude = round(112 + random.random()*40, 6)
+            open_dt = date(2000,1,1) + timedelta(days=random.randint(0, 9000))
+            # 80% active (null close_dt), 20% closed
+            if random.random() < 0.2:
+                close_dt_val = open_dt + timedelta(days=random.randint(30, 5000))
+                if close_dt_val > date.today():
+                    close_dt = ''
+                else:
+                    close_dt = close_dt_val.isoformat()
+            else:
+                close_dt = ''
+            f.write(f"{i},{store_code},{name},{channel},{region},{state},{latitude},{longitude},{open_dt.isoformat()},{close_dt}\n")
+
+    # Generate customers.csv with schema and anomalies
     customers_path = out/'customers.csv'
     num_rows = 80000
     num_malformed = random.randint(int(num_rows*0.005), int(num_rows*0.01))  # 0.5-1% malformed emails
