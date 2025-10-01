@@ -92,6 +92,14 @@ def main():
     }
     currencies = ['AUD', 'USD', 'EUR']
     used_skus = set()
+    # Calculate anomaly indices for missing/invalid prices
+    num_anomaly_prices = random.randint(int(num_products*0.001), int(num_products*0.005))
+    anomaly_price_indices = set(random.sample(range(1, num_products+1), num_anomaly_prices))
+    # For discontinued products with null discontinued_dt
+    discontinued_null_dt_indices = set()
+    for idx in range(1, num_products+1):
+        if random.random() < 0.01:  # 1% of all products
+            discontinued_null_dt_indices.add(idx)
     with products_path.open('w', encoding='utf-8') as f:
         f.write('product_id,sku,name,category,subcategory,current_price,currency,is_discontinued,introduced_dt,discontinued_dt\n')
         for i in range(1, num_products+1):
@@ -104,19 +112,31 @@ def main():
             name = fake.word().capitalize() + ' ' + fake.word().capitalize()
             category = random.choice(categories)
             subcategory = random.choice(subcategories[category])
-            price = round(random.uniform(5, 2000), 4)
+            # Price anomaly logic
+            if i in anomaly_price_indices:
+                # 50% missing, 50% invalid (e.g. negative or string)
+                if random.random() < 0.5:
+                    price = ''
+                else:
+                    price = random.choice(['-99.9999', 'not_a_price'])
+            else:
+                price = f"{round(random.uniform(5, 2000), 4):.4f}"
             currency = random.choice(currencies)
             is_discontinued = random.random() < 0.1
             intro_dt = date(2015,1,1) + timedelta(days=random.randint(0, 365*8))
+            # Discontinued logic with some null discontinued_dt
             if is_discontinued:
-                disc_dt = intro_dt + timedelta(days=random.randint(30, 2000))
-                if disc_dt > date.today():
+                if i in discontinued_null_dt_indices:
                     disc_dt = ''
                 else:
-                    disc_dt = disc_dt.isoformat()
+                    disc_dt_val = intro_dt + timedelta(days=random.randint(30, 2000))
+                    if disc_dt_val > date.today():
+                        disc_dt = ''
+                    else:
+                        disc_dt = disc_dt_val.isoformat()
             else:
                 disc_dt = ''
-            f.write(f"{i},{sku},{name},{category},{subcategory},{price:.4f},{currency},{str(is_discontinued)},{intro_dt.isoformat()},{disc_dt}\n")
+            f.write(f"{i},{sku},{name},{category},{subcategory},{price},{currency},{str(is_discontinued)},{intro_dt.isoformat()},{disc_dt}\n")
 
 
     # Shipments parquet sample
