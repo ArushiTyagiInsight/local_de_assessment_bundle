@@ -457,6 +457,46 @@ def main():
     })
     pq.write_table(tbl, shipments_path, compression='snappy')
 
+    # Generate returns Delta format with schema evolution
+    import pandas as pd
+    try:
+        import deltalake as dl
+    except ImportError:
+        dl = None
+    returns_base_path = out/'returns_base.parquet'
+    returns_evolved_path = out/'returns_evolved.parquet'
+    num_returns = 100000
+    order_ids = list(range(1, 1000001))
+    product_ids = list(range(1, 25001))
+    reasons = ['damaged', 'wrong_item', 'not_needed', 'late', 'other']
+    # Base version
+    df_base = pd.DataFrame({
+        'return_id': range(1, num_returns+1),
+        'order_id': [random.choice(order_ids) for _ in range(num_returns)],
+        'product_id': [random.choice(product_ids) for _ in range(num_returns)],
+        'return_ts': [datetime(2023,1,1) + timedelta(days=random.randint(0, 639), seconds=random.randint(0, 86399)) for _ in range(num_returns)],
+        'qty': [random.randint(1, 5) for _ in range(num_returns)],
+        'reason': [random.choice(reasons) for _ in range(num_returns)]
+    })
+    df_base.to_parquet(returns_base_path, index=False)
+    # Evolved version: add return_reason_code
+    reason_codes = {'damaged': 'D', 'wrong_item': 'W', 'not_needed': 'N', 'late': 'L', 'other': 'O'}
+    df_evolved = df_base.copy()
+    df_evolved['return_reason_code'] = df_evolved['reason'].map(reason_codes)
+    df_evolved.to_parquet(returns_evolved_path, index=False)
+    # Demonstrate UPSERT (update some reasons) and DELETE (remove some rows)
+    # UPSERT: update 1% of reasons
+    upsert_indices = random.sample(range(num_returns), int(num_returns*0.01))
+    for idx in upsert_indices:
+        df_evolved.at[idx, 'reason'] = 'updated_reason'
+        df_evolved.at[idx, 'return_reason_code'] = 'U'
+    # DELETE: remove 0.5% of rows
+    delete_indices = set(random.sample(range(num_returns), int(num_returns*0.005)))
+    df_evolved = df_evolved.drop(df_evolved.index[list(delete_indices)])
+    # Save as a new version
+    returns_upsert_path = out/'returns_upsert_delete.parquet'
+    df_evolved.to_parquet(returns_upsert_path, index=False)
+
     print(f"✅ Raw data written to {out}. Expand to required volumes per /docs.")
 if __name__ == '__main__':
     main()
