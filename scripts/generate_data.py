@@ -14,6 +14,7 @@ def parse_args():
     ap = argparse.ArgumentParser()
     ap.add_argument('--seed', type=int, default=42)
     ap.add_argument('--out', type=str, default='data_raw')
+    ap.add_argument('--scale', type=float, default=0.01, help='scale for testing (0.01 = 1%)') ##added scale
     return ap.parse_args()
 
 def ensure_dir(p): pathlib.Path(p).mkdir(parents=True, exist_ok=True)
@@ -431,15 +432,8 @@ def main():
     # Prepare anomaly indices
     num_null_delivered = int(num_shipments * 0.01)
     null_delivered_indices = set(random.sample(range(1, num_shipments+1), num_null_delivered))
-    num_late = int(num_shipments * 0.01)
-    late_indices = set(random.sample(range(1, num_shipments+1), num_late))
     order_ids = list(range(1, 1000001))
     shipment_ids = list(range(1, num_shipments+1))
-    shipped_ats = []
-    delivered_ats = []
-    ship_costs = []
-    carrier_list = []
-    order_id_list = []
     # Build order_ts_map for temporal logic
     order_ts_map = {}
     with open(out/'orders_header.csv', encoding='utf-8') as f:
@@ -452,24 +446,36 @@ def main():
     for i in range(1, num_shipments+1):
         order_id = random.choice(order_ids)
         carrier = random.choice(carriers)
-        # Ship date must be after order_ts
+    # Ship date must be after order_ts
         min_ship_dt = order_ts_map[order_id] + timedelta(hours=1)
         ship_dt = min_ship_dt + timedelta(hours=random.randint(0, 72), seconds=random.randint(0, 86399))
-        # Null delivered_at anomaly
-        if i in null_delivered_indices:
-            delivered_at = None
+
+    # Prepare anomaly indices for late deliveries
+    num_late = int(num_shipments * 0.01)
+    late_indices = set(random.sample(range(1, num_shipments+1), num_late))
+
+    # Null delivered_at anomaly
+    if i in null_delivered_indices:
+        delivered_at = None
+    else:
+        # Late delivery anomaly
+        if i in late_indices:
+            delivered_at = ship_dt + timedelta(days=random.randint(8, 30), seconds=random.randint(0, 86399))
         else:
-            # Late delivery anomaly
-            if i in late_indices:
-                delivered_at = ship_dt + timedelta(days=random.randint(8, 30), seconds=random.randint(0, 86399))
-            else:
-                delivered_at = ship_dt + timedelta(days=random.randint(1, 7), seconds=random.randint(0, 86399))
-        ship_cost = round(random.uniform(5, 200), 2)
-        shipped_ats.append(ship_dt)
-        delivered_ats.append(delivered_at)
-        ship_costs.append(ship_cost)
-        carrier_list.append(carrier)
-        order_id_list.append(order_id)
+            delivered_at = ship_dt + timedelta(days=random.randint(1, 7), seconds=random.randint(0, 86399))
+    
+    shipped_ats = []
+    delivered_ats = []
+    ship_costs = []
+    carrier_list = []
+    order_id_list = []
+
+    ship_cost = round(random.uniform(5, 200), 2)
+    shipped_ats.append(ship_dt)
+    delivered_ats.append(delivered_at)
+    ship_costs.append(ship_cost)
+    carrier_list.append(carrier)
+    order_id_list.append(order_id)
     tbl = pa.table({
         'shipment_id': pa.array(shipment_ids, type=pa.int64()),
         'order_id': pa.array(order_id_list, type=pa.int64()),
