@@ -211,6 +211,47 @@ def main():
                 disc_dt = ''
             f.write(f"{i},{sku},{name},{category},{subcategory},{price},{currency},{str(is_discontinued)},{intro_dt.isoformat()},{disc_dt}\n")
     
+    # Generate orders_header.csv with schema, partitioning, and anomalies
+    orders_path = out/'orders_header.csv'
+    num_orders = 1000000
+    payment_methods = ['Credit Card', 'PayPal', 'Gift Card', 'Afterpay', 'Cash']
+    coupon_codes = [''] + [f'COUPON{str(i).zfill(3)}' for i in range(1, 51)]
+    currencies = ['AUD', 'USD', 'EUR']
+    # Load valid customer and store ids from generated files
+    customers_ids = list(range(1, 80001))
+    stores_ids = list(range(1, 5001))
+    # Prepare anomaly indices
+    num_fk_viol = int(num_orders * 0.01)
+    fk_viol_indices = set(random.sample(range(1, num_orders+1), num_fk_viol))
+    num_dupes = int(num_orders * 0.0005)
+    dupe_indices = set(random.sample(range(1, num_orders+1), num_dupes))
+    dupe_order_ids = random.sample(range(1, num_orders+1), num_dupes)
+    # Partitioning by order_dt (simulate by sorting at the end if needed)
+    order_ids = list(range(1, num_orders+1))
+    # Add duplicate order_ids at random positions
+    for idx, dupe_id in zip(sorted(dupe_indices), dupe_order_ids):
+        order_ids[idx-1] = dupe_id
+    with orders_path.open('w', encoding='utf-8') as f:
+        f.write('order_id,order_ts,order_dt_local,customer_id,store_id,channel,payment_method,coupon_code,shipping_fee,currency\n')
+        for i in range(1, num_orders+1):
+            order_id = order_ids[i-1]
+            # Partitioning: order_ts and order_dt_local
+            order_dt_local = date(2023,1,1) + timedelta(days=random.randint(0, 639))
+            order_ts = datetime.combine(order_dt_local, datetime.min.time()) + timedelta(seconds=random.randint(0, 86399))
+            # Foreign key violation logic
+            if i in fk_viol_indices:
+                customer_id = random.randint(80001, 90000)
+                store_id = random.randint(5001, 6000)
+            else:
+                customer_id = random.choice(customers_ids)
+                store_id = random.choice(stores_ids)
+            channel = random.choice(['Retail', 'Online', 'Franchise'])
+            payment_method = random.choice(payment_methods)
+            coupon_code = random.choice(coupon_codes)
+            shipping_fee = round(random.uniform(0, 50), 2)
+            currency = random.choice(currencies)
+            f.write(f"{order_id},{order_ts.isoformat()}Z,{order_dt_local.isoformat()},{customer_id},{store_id},{channel},{payment_method},{coupon_code},{shipping_fee:.2f},{currency}\n")
+
     # Shipments parquet sample
     #tbl = pa.table({
      #   'shipment_id': pa.array(range(1, 10001), type=pa.int64()),
