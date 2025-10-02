@@ -288,7 +288,7 @@ def main():
             line_discount_pct = round(random.uniform(0, 0.5), 4)
             tax_pct = round(random.uniform(0, 0.25), 4)
             f.write(f"{order_id},{line_number},{product_id},{qty},{unit_price:.4f},{line_discount_pct:.4f},{tax_pct:.4f}\n")
-            
+
     # Generate events.jsonl with schema, partitioning, and anomalies
     events_path = out/'events.jsonl'
     num_events = 2000000
@@ -334,6 +334,74 @@ def main():
                 import json
                 line = json.dumps(event_obj, separators=(",", ":")) + "\n"
             f.write(line)
+
+    # Generate sensors.csv with schema, partitioning, and anomalies
+    sensors_path = out/'sensors.csv'
+    num_sensors = random.randint(5000000, 10000000)
+    store_ids = list(range(1, 5001))
+    shelf_ids = [f'SHELF-{rstr.rstr("[A-Z0-9]{4}")}' for _ in range(100)]
+    # Out-of-range anomaly indices
+    num_bad_temp = random.randint(int(num_sensors*0.001), int(num_sensors*0.005))
+    bad_temp_indices = set(random.sample(range(1, num_sensors+1), num_bad_temp))
+    num_bad_hum = random.randint(int(num_sensors*0.001), int(num_sensors*0.005))
+    bad_hum_indices = set(random.sample(range(1, num_sensors+1), num_bad_hum))
+    # Missing sensor_ts anomaly
+    num_missing_ts = random.randint(int(num_sensors*0.0005), int(num_sensors*0.001))
+    missing_ts_indices = set(random.sample(range(1, num_sensors+1), num_missing_ts))
+    with sensors_path.open('w', encoding='utf-8') as f:
+        f.write('sensor_ts,store_id,shelf_id,temperature_c,humidity_pct,battery_mv\n')
+        for i in range(1, num_sensors+1):
+            # Partitioning: store_id and month
+            store_id = random.choice(store_ids)
+            month_offset = random.randint(0, 23)
+            base_date = datetime(2023, 1, 1) + timedelta(days=month_offset*30)
+            ts = base_date + timedelta(minutes=random.randint(0, 43200))
+            # Missing sensor_ts anomaly
+            if i in missing_ts_indices:
+                sensor_ts = ''
+            else:
+                sensor_ts = ts.isoformat() + 'Z'
+            shelf_id = random.choice(shelf_ids)
+            # Out-of-range temperature
+            if i in bad_temp_indices:
+                temperature_c = round(random.choice([-50, 100, 200]), 2)
+            else:
+                temperature_c = round(random.uniform(-5, 45), 2)
+            # Out-of-range humidity
+            if i in bad_hum_indices:
+                humidity_pct = round(random.choice([-10, 150, 200]), 2)
+            else:
+                humidity_pct = round(random.uniform(10, 90), 2)
+            battery_mv = random.randint(2500, 4200)
+            f.write(f"{sensor_ts},{store_id},{shelf_id},{temperature_c},{humidity_pct},{battery_mv}\n")
+    
+    # Generate exchange_rates.xlsx with schema and 3 years of daily data
+    exchange_rates_path = out/'exchange_rates.xlsx'
+    start_date = date(2023, 1, 1)
+    num_days = 366 + 365 + 365  # 3 years, including leap year
+    currencies = ['AUD', 'USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR', 'NZD', 'CAD', 'SGD']
+    # Generate rates for each day and currency
+    rows = []
+    for i in range(num_days):
+        d = start_date + timedelta(days=i)
+        for currency in currencies:
+            if currency == 'AUD':
+                rate = 1.0
+            else:
+                # Simulate a realistic but random walk for FX rates
+                base = {
+                    'USD': 0.65, 'EUR': 0.60, 'GBP': 0.53, 'JPY': 95.0, 'CNY': 4.5, 'INR': 54.0, 'NZD': 1.08, 'CAD': 0.88, 'SGD': 0.87
+                }[currency]
+                # Add some daily random walk
+                rate = round(base + np.random.normal(0, base*0.01), 8)
+            rows.append((d.isoformat(), currency, f"{rate:.8f}"))
+    # Write to XLSX
+    wb = xlsxwriter.Workbook(str(exchange_rates_path))
+    ws = wb.add_worksheet('exchange_rates')
+    ws.write_row(0, 0, ['date', 'currency', 'rate_to_aud'])
+    for idx, row in enumerate(rows, 1):
+        ws.write_row(idx, 0, row)
+    wb.close()
     # Shipments parquet sample
     #tbl = pa.table({
      #   'shipment_id': pa.array(range(1, 10001), type=pa.int64()),
@@ -344,7 +412,51 @@ def main():
         #'ship_cost': pa.array([1995]*10000, type=pa.int64()).cast(pa.decimal128(12,2)),
     #})
     #pq.write_table(tbl, out/'shipments.parquet', compression='snappy')
+    # Generate shipments.parquet with schema and anomalies
+    shipments_path = out/'shipments.parquet'
+    num_shipments = 1000000
+    carriers = ['AUSPOST', 'TNT', 'DHL', 'FEDEX', 'ARAMEX']
+    # Prepare anomaly indices
+    num_null_delivered = int(num_shipments * 0.01)
+    null_delivered_indices = set(random.sample(range(1, num_shipments+1), num_null_delivered))
+    num_late = int(num_shipments * 0.01)
+    late_indices = set(random.sample(range(1, num_shipments+1), num_late))
+    order_ids = list(range(1, 1000001))
+    shipment_ids = list(range(1, num_shipments+1))
+    shipped_ats = []
+    delivered_ats = []
+    ship_costs = []
+    carrier_list = []
+    order_id_list = []
+    for i in range(1, num_shipments+1):
+        order_id = random.choice(order_ids)
+        carrier = random.choice(carriers)
+        ship_dt = datetime(2023,1,1) + timedelta(days=random.randint(0, 639), seconds=random.randint(0, 86399))
+        # Null delivered_at anomaly
+        if i in null_delivered_indices:
+            delivered_at = None
+        else:
+            # Late delivery anomaly
+            if i in late_indices:
+                delivered_at = ship_dt + timedelta(days=random.randint(8, 30), seconds=random.randint(0, 86399))
+            else:
+                delivered_at = ship_dt + timedelta(days=random.randint(1, 7), seconds=random.randint(0, 86399))
+        ship_cost = round(random.uniform(5, 200), 2)
+        shipped_ats.append(ship_dt)
+        delivered_ats.append(delivered_at)
+        ship_costs.append(ship_cost)
+        carrier_list.append(carrier)
+        order_id_list.append(order_id)
+    tbl = pa.table({
+        'shipment_id': pa.array(shipment_ids, type=pa.int64()),
+        'order_id': pa.array(order_id_list, type=pa.int64()),
+        'carrier': pa.array(carrier_list, type=pa.string()),
+        'shipped_at': pa.array(shipped_ats, type=pa.timestamp('us')),
+        'delivered_at': pa.array(delivered_ats, type=pa.timestamp('us')),
+        'ship_cost': pa.array(ship_costs).cast(pa.decimal128(12,2)),
+    })
+    pq.write_table(tbl, shipments_path, compression='snappy')
 
-    print(f"✅ Sample raw written to {out}. Expand to required volumes per /docs.")
+    print(f"✅ Raw data written to {out}. Expand to required volumes per /docs.")
 if __name__ == '__main__':
     main()
