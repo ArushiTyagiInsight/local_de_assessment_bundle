@@ -251,7 +251,89 @@ def main():
             shipping_fee = round(random.uniform(0, 50), 2)
             currency = random.choice(currencies)
             f.write(f"{order_id},{order_ts.isoformat()}Z,{order_dt_local.isoformat()},{customer_id},{store_id},{channel},{payment_method},{coupon_code},{shipping_fee:.2f},{currency}\n")
-
+        # Generate orders_lines.csv with schema, partitioning, and anomalies
+    order_lines_path = out/'orders_lines.csv'
+    # Load order_ids and product_ids from generated files
+    order_ids = list(range(1, 1000001))
+    product_ids = list(range(1, 25001))
+    num_lines = random.randint(3000000, 4000000)
+    # 1% invalid product_ids
+    num_invalid_prod = int(num_lines * 0.01)
+    invalid_prod_indices = set(random.sample(range(1, num_lines+1), num_invalid_prod))
+    # Rare negative quantities or zero prices
+    num_neg_qty = max(1, int(num_lines * 0.0005))
+    neg_qty_indices = set(random.sample(range(1, num_lines+1), num_neg_qty))
+    num_zero_price = max(1, int(num_lines * 0.0005))
+    zero_price_indices = set(random.sample(range(1, num_lines+1), num_zero_price))
+    with order_lines_path.open('w', encoding='utf-8') as f:
+        f.write('order_id,line_number,product_id,qty,unit_price,line_discount_pct,tax_pct\n')
+        for i in range(1, num_lines+1):
+            order_id = random.choice(order_ids)
+            line_number = random.randint(1, 10)
+            # Product id anomaly
+            if i in invalid_prod_indices:
+                product_id = random.randint(25001, 26000)
+            else:
+                product_id = random.choice(product_ids)
+            # Quantity anomaly
+            if i in neg_qty_indices:
+                qty = -random.randint(1, 5)
+            else:
+                qty = random.randint(1, 10)
+            # Price anomaly
+            if i in zero_price_indices:
+                unit_price = 0.0
+            else:
+                unit_price = round(random.uniform(5, 2000), 4)
+            line_discount_pct = round(random.uniform(0, 0.5), 4)
+            tax_pct = round(random.uniform(0, 0.25), 4)
+            f.write(f"{order_id},{line_number},{product_id},{qty},{unit_price:.4f},{line_discount_pct:.4f},{tax_pct:.4f}\n")
+            
+    # Generate events.jsonl with schema, partitioning, and anomalies
+    events_path = out/'events.jsonl'
+    num_events = 2000000
+    event_types = ['click', 'view', 'purchase', 'login', 'logout', 'error']
+    # Prepare anomaly indices
+    num_malformed = max(1, int(num_events * 0.0005))
+    malformed_indices = set(random.sample(range(1, num_events+1), num_malformed))
+    num_missing_env = max(1, int(num_events * 0.0005))
+    missing_env_indices = set(random.sample(range(1, num_events+1), num_missing_env))
+    with events_path.open('w', encoding='utf-8') as f:
+        for i in range(1, num_events+1):
+            # Envelope
+            envelope = {
+                "event_id": i,
+                "event_ts": (datetime(2023,1,1) + timedelta(seconds=random.randint(0, 60*60*24*730))).isoformat() + 'Z',
+                "event_type": random.choice(event_types),
+                "user_id": random.randint(1, 100000),
+                "session_id": rstr.rstr('[A-Z0-9]{12}')
+            }
+            # Remove envelope fields for some lines
+            if i in missing_env_indices:
+                for k in random.sample(list(envelope.keys()), random.randint(1, 3)):
+                    envelope.pop(k)
+            # Payload
+            payload = {}
+            if envelope.get("event_type") == "click":
+                payload = {"element": random.choice(["button", "link", "image"]), "x": random.randint(0, 1920), "y": random.randint(0, 1080)}
+            elif envelope.get("event_type") == "view":
+                payload = {"page": random.choice(["home", "product", "cart", "checkout"]), "duration": random.randint(1, 600)}
+            elif envelope.get("event_type") == "purchase":
+                payload = {"order_id": random.randint(1, 1000000), "amount": round(random.uniform(10, 2000), 2)}
+            elif envelope.get("event_type") == "login":
+                payload = {"method": random.choice(["email", "google", "facebook"])}
+            elif envelope.get("event_type") == "logout":
+                payload = {"reason": random.choice(["timeout", "user_action", "error"])}
+            elif envelope.get("event_type") == "error":
+                payload = {"code": random.randint(100, 599), "message": random.choice(["timeout", "not_found", "server_error"])}
+            event_obj = {**envelope, "payload": payload}
+            # Malformed JSON anomaly
+            if i in malformed_indices:
+                line = '{bad_json_line\n'
+            else:
+                import json
+                line = json.dumps(event_obj, separators=(",", ":")) + "\n"
+            f.write(line)
     # Shipments parquet sample
     #tbl = pa.table({
      #   'shipment_id': pa.array(range(1, 10001), type=pa.int64()),
