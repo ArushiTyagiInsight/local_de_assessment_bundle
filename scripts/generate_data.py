@@ -428,10 +428,21 @@ def main():
     ship_costs = []
     carrier_list = []
     order_id_list = []
+    # Build order_ts_map for temporal logic
+    order_ts_map = {}
+    with open(out/'orders_header.csv', encoding='utf-8') as f:
+        next(f)
+        for line in f:
+            parts = line.strip().split(',')
+            oid = int(parts[0])
+            ots = datetime.fromisoformat(parts[1].replace('Z',''))
+            order_ts_map[oid] = ots
     for i in range(1, num_shipments+1):
         order_id = random.choice(order_ids)
         carrier = random.choice(carriers)
-        ship_dt = datetime(2023,1,1) + timedelta(days=random.randint(0, 639), seconds=random.randint(0, 86399))
+        # Ship date must be after order_ts
+        min_ship_dt = order_ts_map[order_id] + timedelta(hours=1)
+        ship_dt = min_ship_dt + timedelta(hours=random.randint(0, 72), seconds=random.randint(0, 86399))
         # Null delivered_at anomaly
         if i in null_delivered_indices:
             delivered_at = None
@@ -470,14 +481,26 @@ def main():
     product_ids = list(range(1, 25001))
     reasons = ['damaged', 'wrong_item', 'not_needed', 'late', 'other']
     # Base version
-    df_base = pd.DataFrame({
-        'return_id': range(1, num_returns+1),
-        'order_id': [random.choice(order_ids) for _ in range(num_returns)],
-        'product_id': [random.choice(product_ids) for _ in range(num_returns)],
-        'return_ts': [datetime(2023,1,1) + timedelta(days=random.randint(0, 639), seconds=random.randint(0, 86399)) for _ in range(num_returns)],
-        'qty': [random.randint(1, 5) for _ in range(num_returns)],
-        'reason': [random.choice(reasons) for _ in range(num_returns)]
-    })
+    # Build order_ts_map for returns
+    order_ts_map_returns = {}
+    with open(out/'orders_header.csv', encoding='utf-8') as f:
+        next(f)
+        for line in f:
+            parts = line.strip().split(',')
+            oid = int(parts[0])
+            ots = datetime.fromisoformat(parts[1].replace('Z',''))
+            order_ts_map_returns[oid] = ots
+    base_data = []
+    for i in range(1, num_returns+1):
+        order_id = random.choice(order_ids)
+        product_id = random.choice(product_ids)
+        # Return date must be after order_ts
+        min_return_ts = order_ts_map_returns[order_id] + timedelta(days=2)
+        return_ts = min_return_ts + timedelta(days=random.randint(0, 30), seconds=random.randint(0, 86399))
+        qty = random.randint(1, 5)
+        reason = random.choice(reasons)
+        base_data.append((i, order_id, product_id, return_ts, qty, reason))
+    df_base = pd.DataFrame(base_data, columns=['return_id','order_id','product_id','return_ts','qty','reason'])
     df_base.to_parquet(returns_base_path, index=False)
     # Evolved version: add return_reason_code
     reason_codes = {'damaged': 'D', 'wrong_item': 'W', 'not_needed': 'N', 'late': 'L', 'other': 'O'}
