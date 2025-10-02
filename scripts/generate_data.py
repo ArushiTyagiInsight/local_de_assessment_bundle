@@ -24,6 +24,16 @@ def main():
     out = pathlib.Path(args.out); ensure_dir(out)
     fake = Faker('en_AU')
 
+    # Remove existing output files to ensure new data is generated each run
+    for fname in [
+        'customers.csv', 'products.csv', 'stores.csv', 'suppliers.csv', 'orders_header.csv',
+        'orders_lines.csv', 'events.jsonl', 'sensors.csv', 'exchange_rates.xlsx',
+        'shipments.parquet', 'returns_base.parquet', 'returns_evolved.parquet', 'returns_upsert_delete.parquet',
+    ]:
+        fpath = out / fname
+        if fpath.exists():
+            fpath.unlink()
+
     # Generate stores.csv with schema and anomalies
     stores_path = out/'stores.csv'
     num_stores = 5000
@@ -251,7 +261,7 @@ def main():
             shipping_fee = round(random.uniform(0, 50), 2)
             currency = random.choice(currencies)
             f.write(f"{order_id},{order_ts.isoformat()}Z,{order_dt_local.isoformat()},{customer_id},{store_id},{channel},{payment_method},{coupon_code},{shipping_fee:.2f},{currency}\n")
-        # Generate orders_lines.csv with schema, partitioning, and anomalies
+    # Generate orders_lines.csv with schema, partitioning, and anomalies
     order_lines_path = out/'orders_lines.csv'
     # Load order_ids and product_ids from generated files
     order_ids = list(range(1, 1000001))
@@ -412,6 +422,8 @@ def main():
         #'ship_cost': pa.array([1995]*10000, type=pa.int64()).cast(pa.decimal128(12,2)),
     #})
     #pq.write_table(tbl, out/'shipments.parquet', compression='snappy')
+
+
     # Generate shipments.parquet with schema and anomalies
     shipments_path = out/'shipments.parquet'
     num_shipments = 1000000
