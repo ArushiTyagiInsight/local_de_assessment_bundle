@@ -443,39 +443,31 @@ def main():
             oid = int(parts[0])
             ots = datetime.fromisoformat(parts[1].replace('Z',''))
             order_ts_map[oid] = ots
-    for i in range(1, num_shipments+1):
-        order_id = random.choice(order_ids)
-        carrier = random.choice(carriers)
-    # Ship date must be after order_ts
-        min_ship_dt = order_ts_map[order_id] + timedelta(hours=1)
-        ship_dt = min_ship_dt + timedelta(hours=random.randint(0, 72), seconds=random.randint(0, 86399))
-
-    # Prepare anomaly indices for late deliveries
-    num_late = int(num_shipments * 0.01)
-    late_indices = set(random.sample(range(1, num_shipments+1), num_late))
-
-    # Null delivered_at anomaly
-    if i in null_delivered_indices:
-        delivered_at = None
-    else:
-        # Late delivery anomaly
-        if i in late_indices:
-            delivered_at = ship_dt + timedelta(days=random.randint(8, 30), seconds=random.randint(0, 86399))
-        else:
-            delivered_at = ship_dt + timedelta(days=random.randint(1, 7), seconds=random.randint(0, 86399))
-    
     shipped_ats = []
     delivered_ats = []
     ship_costs = []
     carrier_list = []
     order_id_list = []
-
-    ship_cost = round(random.uniform(5, 200), 2)
-    shipped_ats.append(ship_dt)
-    delivered_ats.append(delivered_at)
-    ship_costs.append(ship_cost)
-    carrier_list.append(carrier)
-    order_id_list.append(order_id)
+    num_late = int(num_shipments * 0.01)
+    late_indices = set(random.sample(range(1, num_shipments+1), num_late))
+    for i in range(1, num_shipments+1):
+        order_id = random.choice(order_ids)
+        carrier = random.choice(carriers)
+        min_ship_dt = order_ts_map[oid] + timedelta(hours=1)
+        ship_dt = min_ship_dt + timedelta(hours=random.randint(0, 72), seconds=random.randint(0, 86399))
+        if i in null_delivered_indices:
+            delivered_at = None
+        else:
+            if i in late_indices:
+                delivered_at = ship_dt + timedelta(days=random.randint(8, 30), seconds=random.randint(0, 86399))
+            else:
+                delivered_at = ship_dt + timedelta(days=random.randint(1, 7), seconds=random.randint(0, 86399))
+        ship_cost = round(random.uniform(5, 200), 2)
+        shipped_ats.append(ship_dt)
+        delivered_ats.append(delivered_at)
+        ship_costs.append(ship_cost)
+        carrier_list.append(carrier)
+        order_id_list.append(order_id)
     tbl = pa.table({
         'shipment_id': pa.array(shipment_ids, type=pa.int64()),
         'order_id': pa.array(order_id_list, type=pa.int64()),
@@ -486,7 +478,7 @@ def main():
     })
     pq.write_table(tbl, shipments_path, compression='snappy')
 
-    # Generate returns Delta format with schema evolution
+        # Generate returns Delta format with schema evolution
     import pandas as pd
     try:
         import deltalake as dl
@@ -513,7 +505,7 @@ def main():
         order_id = random.choice(order_ids)
         product_id = random.choice(product_ids)
         # Return date must be after order_ts
-        min_return_ts = order_ts_map_returns[order_id] + timedelta(days=2)
+        min_return_ts = order_ts_map_returns[oid] + timedelta(days=2)
         return_ts = min_return_ts + timedelta(days=random.randint(0, 30), seconds=random.randint(0, 86399))
         qty = random.randint(1, 5)
         reason = random.choice(reasons)
