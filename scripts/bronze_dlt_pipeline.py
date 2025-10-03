@@ -57,6 +57,14 @@ def retail_source(raw_path: str = "data_raw"):
 
 pipeline = dlt.pipeline(
     pipeline_name="retail_bronze_pipeline",
+    destination=duckdb_dest,
+    dataset_name="retail_bronze"
+)
+
+pipeline.run(retail_source())
+
+pipeline = dlt.pipeline(
+    pipeline_name="retail_bronze_pipeline",
     destination=parquet_dest,
     dataset_name="retail_bronze"
 )
