@@ -10,39 +10,6 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from schemas.schemas import *
 from datetime import datetime
 
-def get_customer_columns():
-    """
-    Convert PyArrow customer schema to DLT column definitions
-    """
-    type_mapping = {
-        'int64': 'bigint',
-        'string': 'text',
-        'double': 'double',  # PyArrow float64 shows as 'double'
-        'date32': 'date',
-        'timestamp': 'timestamp',
-        'bool': 'bool',
-    }
-    
-    columns = {}
-    for field in customers_schema:
-        data_type = field.type
-        if isinstance(data_type, pa.TimestampType):
-            dlt_type = 'timestamp'
-        elif isinstance(data_type, pa.FloatingPointType):
-            dlt_type = 'double'
-        else:
-            dlt_type = type_mapping[str(data_type)]
-            
-        columns[field.name] = {
-            "data_type": dlt_type,
-            # Make primary key fields unique and required
-            "unique": field.name == "customer_id",
-            # Make certain fields non-nullable based on business rules
-            "nullable": field.name not in ["natural_key", "first_name", "last_name", "email"]
-        }
-    
-    return columns
-
 # Configure destinations
 duckdb_dest = dlt.destinations.duckdb(
     credentials="duckdb/warehouse.duckdb"
