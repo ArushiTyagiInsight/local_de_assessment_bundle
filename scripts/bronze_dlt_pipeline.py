@@ -10,6 +10,39 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from schemas.schemas import *
 from datetime import datetime
 
+def get_customer_columns():
+    """
+    Convert PyArrow customer schema to DLT column definitions
+    """
+    type_mapping = {
+        'int64': 'bigint',
+        'string': 'text',
+        'double': 'double',  # PyArrow float64 shows as 'double'
+        'date32': 'date',
+        'timestamp': 'timestamp',
+        'bool': 'bool',
+    }
+    
+    columns = {}
+    for field in customers_schema:
+        data_type = field.type
+        if isinstance(data_type, pa.TimestampType):
+            dlt_type = 'timestamp'
+        elif isinstance(data_type, pa.FloatingPointType):
+            dlt_type = 'double'
+        else:
+            dlt_type = type_mapping[str(data_type)]
+            
+        columns[field.name] = {
+            "data_type": dlt_type,
+            # Make primary key fields unique and required
+            "unique": field.name == "customer_id",
+            # Make certain fields non-nullable based on business rules
+            "nullable": field.name not in ["natural_key", "first_name", "last_name", "email"]
+        }
+    
+    return columns
+
 # Configure destinations
 duckdb_dest = dlt.destinations.duckdb(
     credentials="duckdb/warehouse.duckdb"
@@ -26,7 +59,6 @@ def retail_source(raw_path: str = "data_raw"):
     @dlt.resource(
         name="customers",
         write_disposition="replace",
-        #columns=customers_schema  # Use PyArrow schema
         columns={
             "customer_id": {"data_type": "bigint", "unique": True},
             "natural_key": {"data_type": "text", "nullable": False},
@@ -46,70 +78,66 @@ def retail_source(raw_path: str = "data_raw"):
             "join_ts": {"data_type": "timestamp"},
             "is_vip": {"data_type": "bool"},
             "gdpr_consent": {"data_type": "bool"}
-        },
-        schema_contract_settings={"data_type": "evolve", "columns": "complete"}
+        }
     )
     def load_customers():
         # Read CSV and yield data
         # DLT handles schema validation automatically
         file_path = os.path.join(raw_path, "customers.csv")
+        count = 0
         with open(file_path, newline='') as csvfile:
             reader = csv.DictReader(csvfile)
             for row in reader:
+                count += 1
                 yield row
-        pass
-    
+        print(f"Loaded {count} rows from customers.csv")
+
     @dlt.transformer(
         data_from=load_customers,
         write_disposition="replace"
     )
     def add_audit_columns(record):
-        # Add ingestion_ts, src_filename, etc.
-
-        def make_csv_resource(name, filename):
-            @dlt.resource(name=name, write_disposition="replace")
-            def loader():
-                file_path = os.path.join(raw_path, filename)
-                with open(file_path, newline='') as csvfile:
-                    reader = csv.DictReader(csvfile)
-                    for row in reader:
-                        yield row
-            @dlt.transformer(data_from=loader, write_disposition="replace")
-            def add_audit_columns(record):
-                return {
-                    **record,
-                    "ingestion_ts": datetime.utcnow(),
-                    "src_filename": filename
-                }
-            return add_audit_columns()
-
-        # DLT resources with data quality checks for all files
-        
-        def validated_customers():
-            file_path = os.path.join(raw_path, "customers.csv")
-            with open(file_path, newline='') as csvfile:
-                reader = csv.DictReader(csvfile)
-                for row in reader:
-                    yield row
-        def add_customers_audit(record):
-            return {**record, "ingestion_ts": datetime.utcnow(), "src_filename": "customers.csv"}
-        customers_with_audit = map(add_customers_audit, validated_customers())
-
-        return [
-            customers_with_audit
-        ]
+        return {
+            **record,
+            "ingestion_ts": datetime.utcnow(),
+            "src_filename": "customers.csv"
+        }
+    return [add_audit_columns,load_customers]
 def run_bronze_pipeline():
     # Create pipeline
     pipeline = dlt.pipeline(
         pipeline_name="retail_bronze",
         destination=duckdb_dest,
-        dataset_name="bronze"
+        dataset_name="bronze",
+        #schema_contract_settings={
+        #    "data_type": "evolve",  # Allow schema evolution
+        #    "columns": "complete"   # But require all defined columns
+        #}
     )
     # Load to DuckDB
     load_info = pipeline.run(retail_source())
+    print("[DLT] DuckDB load_info:")
+    print(load_info)
     # Also write to Parquet
     pipeline.destination = parquet_dest
     pipeline.run(retail_source())
     # Handle Delta format separately
     #write_to_delta(pipeline.last_trace.last_extract_info)
- 
+
+def run_parquet_pipeline():
+    pipeline = dlt.pipeline(
+        pipeline_name="retail_bronze",
+        destination=parquet_dest,
+        dataset_name="bronze",
+        #schema_contract_settings={
+        #    "data_type": "evolve",  # Allow schema evolution
+        #    "columns": "complete"   # But require all defined columns
+        #}
+    )
+    load_info = pipeline.run(retail_source())
+    print("[DLT] Parquet load_info:")
+    print(load_info)
+
+if __name__ == "__main__":
+    run_bronze_pipeline()
+    run_parquet_pipeline()
