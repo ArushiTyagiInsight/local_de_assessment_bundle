@@ -83,6 +83,7 @@ def retail_source(raw_path: str = "data_raw"):
     def load_customers():
         # Read CSV and yield data
         # DLT handles schema validation automatically
+        #added code for counting rows
         file_path = os.path.join(raw_path, "customers.csv")
         count = 0
         with open(file_path, newline='') as csvfile:
