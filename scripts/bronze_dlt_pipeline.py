@@ -5,6 +5,7 @@ import pyarrow as pa
 import csv
 import os
 import sys
+import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from schemas.schemas import *
@@ -130,6 +131,71 @@ def create_order_lines_columns():
         dlt_columns[field.name] = col_def
     return dlt_columns
 
+def create_exchange_rate_columns():
+    """Create DLT column definitions for exchange_rates table"""
+    dlt_columns = {}
+    for field in exchange_rates_schema:
+        col_def = {"data_type": get_dlt_type(field.type)}
+        if field.name in ["date", "currency"]:
+            col_def["nullable"] = False
+            if field.name == "date":
+                col_def["unique"] = True  # Assuming date+currency is unique
+        if isinstance(field.type, pa.Decimal128Type):
+            col_def["precision"] = field.type.precision
+            col_def["scale"] = field.type.scale
+        dlt_columns[field.name] = col_def
+    return dlt_columns
+
+def create_returns_base_columns():
+    """Create DLT column definitions for base returns table"""
+    dlt_columns = {}
+    # Use day1 schema as base
+    for field in returns_day1_schema:
+        col_def = {"data_type": get_dlt_type(field.type)}
+        if field.name == "return_id":
+            col_def["unique"] = True
+            col_def["nullable"] = False
+        elif field.name in ["order_id", "product_id", "return_ts"]:
+            col_def["nullable"] = False
+        if isinstance(field.type, pa.Decimal128Type):
+            col_def["precision"] = field.type.precision
+            col_def["scale"] = field.type.scale
+        dlt_columns[field.name] = col_def
+    return dlt_columns
+
+def create_returns_evolved_columns():
+    """Create DLT column definitions for evolved returns table with return_reason_code"""
+    dlt_columns = {}
+    # Start with base schema
+    dlt_columns.update(create_returns_base_columns())
+    # Add return_reason_code column
+    dlt_columns["return_reason_code"] = {
+        "data_type": "text",
+        "nullable": True  # Allow nullable for backward compatibility
+    }
+    return dlt_columns
+
+def create_returns_upsert_columns():
+    """Create DLT column definitions for returns table with upserts and deletes"""
+    # Use the same schema as evolved since structure is the same
+    return create_returns_evolved_columns()
+
+def create_shipments_columns():
+    """Create DLT column definitions for shipments table"""
+    dlt_columns = {}
+    for field in shipments_schema:
+        col_def = {"data_type": get_dlt_type(field.type)}
+        if field.name == "shipment_id":
+            col_def["unique"] = True
+            col_def["nullable"] = False
+        elif field.name in ["order_id", "carrier", "shipped_at"]:
+            col_def["nullable"] = False
+        if isinstance(field.type, pa.Decimal128Type):
+            col_def["precision"] = field.type.precision
+            col_def["scale"] = field.type.scale
+        dlt_columns[field.name] = col_def
+    return dlt_columns
+
 
 # Configure destinations
 duckdb_dest = dlt.destinations.duckdb(
@@ -163,6 +229,52 @@ def retail_source(raw_path: str = "data_raw"):
             print(f"Loaded {count} rows from {filename}")
         return load_data
 
+    def load_xlsx(filename, resource_name, schema_func, sheet_name=0):
+        """Helper function to load Excel files with consistent audit columns"""
+        @dlt.resource(
+            name=resource_name,
+            write_disposition="replace",
+            columns=schema_func()
+        )
+        def load_data():
+            file_path = os.path.join(raw_path, filename)
+            # Read Excel file into pandas DataFrame
+            df = pd.read_excel(file_path, sheet_name=sheet_name)
+            # For exchange rates, pivot the data to get currency as a column value
+            if resource_name == "exchange_rates":
+                df_melted = df.melt(id_vars=['date'], var_name='currency', value_name='rate')
+                df = df_melted
+            count = 0
+            # Convert to dict records and yield
+            for record in df.to_dict('records'):
+                count += 1
+                yield {**record,
+                      "ingestion_ts": datetime.utcnow(),
+                      "src_filename": filename}
+            print(f"Loaded {count} rows from {filename}")
+        return load_data
+
+    def load_parquet(filename, resource_name, schema_func):
+        """Helper function to load Parquet files with consistent audit columns"""
+        @dlt.resource(
+            name=resource_name,
+            write_disposition="replace",
+            columns=schema_func()
+        )
+        def load_data():
+            file_path = os.path.join(raw_path, filename)
+            # Read Parquet file into pandas DataFrame
+            df = pd.read_parquet(file_path)
+            count = 0
+            # Convert to dict records and yield
+            for record in df.to_dict('records'):
+                count += 1
+                yield {**record,
+                      "ingestion_ts": datetime.utcnow(),
+                      "src_filename": filename}
+            print(f"Loaded {count} rows from {filename}")
+        return load_data
+
     # Define all resources
     resources = []
     
@@ -174,6 +286,20 @@ def retail_source(raw_path: str = "data_raw"):
     resources.append(load_csv("orders_header.csv", "orders_header", create_order_header_columns))
     resources.append(load_csv("orders_lines.csv", "orders_lines", create_order_lines_columns))
     #resources.append(load_csv("sensors.csv", "sensors", create_sensor_columns))
+
+    # Add new data sources if files exist
+    for file_info in [
+        ("exchange_rates.xlsx", "exchange_rates", create_exchange_rate_columns, load_xlsx),
+        ("returns_base.parquet", "returns_base", create_returns_base_columns, load_parquet),
+        ("returns_evolved.parquet", "returns_evolved", create_returns_evolved_columns, load_parquet),
+        ("returns_upsert_delete.parquet", "returns_upsert", create_returns_upsert_columns, load_parquet),
+        ("shipments.parquet", "shipments", create_shipments_columns, load_parquet)
+    ]:
+        filename, resource_name, schema_func, loader_func = file_info
+        if os.path.exists(os.path.join(raw_path, filename)):
+            resources.append(loader_func(filename, resource_name, schema_func))
+        else:
+            print(f"Warning: {filename} not found in {raw_path}, skipping...")
     
     return resources
 def run_bronze_pipeline():

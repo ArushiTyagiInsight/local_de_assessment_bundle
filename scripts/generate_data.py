@@ -542,6 +542,41 @@ def main():
     returns_upsert_path = out/'returns_upsert_delete.parquet'
     df_evolved.to_parquet(returns_upsert_path, index=False)
 
+    # Generate exchange rates data
+    exchange_rates_path = out/'exchange_rates.xlsx'
+    currencies = ['USD', 'EUR', 'GBP', 'JPY', 'CNY', 'INR']
+    start_date = date(2024, 1, 1)
+    end_date = date(2025, 12, 31)
+    dates = []
+    rates = {curr: [] for curr in currencies}
+    
+    current = start_date
+    while current <= end_date:
+        dates.append(current)
+        for curr in currencies:
+            # Generate somewhat realistic exchange rates with some volatility
+            base_rate = {
+                'USD': 0.65, 'EUR': 0.60, 'GBP': 0.52,
+                'JPY': 95.0, 'CNY': 4.70, 'INR': 54.0
+            }[curr]
+            volatility = random.uniform(-0.02, 0.02)  # 2% daily volatility
+            rate = base_rate * (1 + volatility)
+            rates[curr].append(round(rate, 4))
+        current += timedelta(days=1)
+    
+    # Create Excel file
+    with xlsxwriter.Workbook(exchange_rates_path) as workbook:
+        worksheet = workbook.add_worksheet()
+        # Write headers
+        worksheet.write(0, 0, 'date')
+        for i, curr in enumerate(currencies):
+            worksheet.write(0, i + 1, curr)
+        # Write data
+        for row, dt in enumerate(dates, start=1):
+            worksheet.write(row, 0, dt.isoformat())
+            for col, curr in enumerate(currencies):
+                worksheet.write(row, col + 1, rates[curr][row - 1])
+
     print(f"✅ Raw data written to {out}. Expand to required volumes per /docs.")
 if __name__ == '__main__':
     main()
