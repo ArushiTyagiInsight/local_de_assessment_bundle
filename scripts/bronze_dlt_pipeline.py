@@ -10,6 +10,43 @@ sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 from schemas.schemas import *
 from datetime import datetime
 
+def create_customer_columns():
+    """
+    Create DLT column definitions for customers table by reading from schemas.py
+    Returns a dictionary of column definitions with data types and constraints
+    """
+    dlt_columns = {}
+    
+    # Map PyArrow types to DLT types
+    type_mapping = {
+        pa.int64(): "bigint",
+        pa.string(): "text",
+        pa.float64(): "double",
+        pa.date32(): "date",
+        pa.bool_(): "bool"
+    }
+    
+    # Process each field in the customers schema
+    for field in customers_schema:
+        col_def = {
+            "data_type": type_mapping.get(field.type, "text")  # Default to text if type not found
+        }
+        
+        # Special handling for timestamp type
+        if isinstance(field.type, pa.TimestampType):
+            col_def["data_type"] = "timestamp"
+        
+        # Add constraints based on business rules
+        if field.name == "customer_id":
+            col_def["unique"] = True
+            col_def["nullable"] = False
+        elif field.name in ["natural_key", "first_name", "last_name", "email"]:
+            col_def["nullable"] = False
+        
+        dlt_columns[field.name] = col_def
+    
+    return dlt_columns
+
 # Configure destinations
 duckdb_dest = dlt.destinations.duckdb(
     credentials="duckdb/warehouse.duckdb"
@@ -26,26 +63,7 @@ def retail_source(raw_path: str = "data_raw"):
     @dlt.resource(
         name="customers",
         write_disposition="replace",
-        columns={
-            "customer_id": {"data_type": "bigint", "unique": True},
-            "natural_key": {"data_type": "text", "nullable": False},
-            "first_name": {"data_type": "text", "nullable": False},
-            "last_name": {"data_type": "text", "nullable": False},
-            "email": {"data_type": "text", "nullable": False},
-            "phone": {"data_type": "text"},
-            "address_line1": {"data_type": "text"},
-            "address_line2": {"data_type": "text"},
-            "city": {"data_type": "text"},
-            "state_region": {"data_type": "text"},
-            "postcode": {"data_type": "text"},
-            "country_code": {"data_type": "text"},
-            "latitude": {"data_type": "double"},
-            "longitude": {"data_type": "double"},
-            "birth_date": {"data_type": "date"},
-            "join_ts": {"data_type": "timestamp"},
-            "is_vip": {"data_type": "bool"},
-            "gdpr_consent": {"data_type": "bool"}
-        }
+        columns=create_customer_columns()
     )
     def load_customers():
         # Read CSV and yield data
