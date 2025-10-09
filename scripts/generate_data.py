@@ -277,7 +277,8 @@ def main():
     # Load order_ids and product_ids from generated files
     order_ids = list(range(1, num_orders + 1))
     product_ids = list(range(1, num_products + 1))
-    num_lines = random.randint((BASE_ORDER_LINES * args.scale)*3/4,(BASE_ORDER_LINES * args.scale))
+    scaled_lines = int(BASE_ORDER_LINES * args.scale)
+    num_lines = random.randint(int(scaled_lines * 0.75), scaled_lines)
     # 1% invalid product_ids
     num_invalid_prod = int(num_lines * 0.01)
     invalid_prod_indices = set(random.sample(range(1, num_lines+1), num_invalid_prod))
@@ -358,7 +359,8 @@ def main():
 
     # Generate sensors.csv with schema, partitioning, and anomalies
     sensors_path = out/'sensors.csv'
-    num_sensors = random.randint((BASE_SENSORS * args.scale)/2, (BASE_SENSORS * args.scale))
+    scaled_sensors = int(BASE_SENSORS * args.scale)
+    num_sensors = random.randint(int(scaled_lines * 0.5), scaled_lines)
     store_ids = list(range(1, 5001))
     shelf_ids = [f'SHELF-{rstr.rstr("[A-Z0-9]{4}")}' for _ in range(100)]
     # Out-of-range anomaly indices
