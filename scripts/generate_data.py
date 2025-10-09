@@ -35,9 +35,19 @@ def main():
         if fpath.exists():
             fpath.unlink()
 
+    # Define base table sizes (100% scale)
+    BASE_STORES = 5000
+    BASE_SUPPLIERS = 8000
+    BASE_CUSTOMERS = 80000
+    BASE_PRODUCTS = 25000
+    BASE_ORDERS = 1000000
+    BASE_ORDER_LINES = 4000000
+    BASE_EVENTS = 2000000
+    BASE_SENSORS = 10000000
+    
     # Generate stores.csv with schema and anomalies
     stores_path = out/'stores.csv'
-    num_stores = 5000
+    num_stores = int(BASE_STORES * args.scale)  # Apply scaling
     channels = ['Retail', 'Online', 'Franchise']
     regions = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
     states = ['NSW', 'VIC', 'QLD', 'WA', 'SA', 'TAS', 'ACT', 'NT']
@@ -90,7 +100,7 @@ def main():
     
     # Generate suppliers.csv with schema
     suppliers_path = out/'suppliers.csv'
-    num_suppliers = 8000
+    num_suppliers = int(BASE_SUPPLIERS * args.scale)
     country_codes = ['AU', 'US', 'CN', 'IN', 'DE', 'JP', 'GB', 'FR', 'BR', 'CA']
     used_supplier_codes = set()
     with suppliers_path.open('w', encoding='utf-8') as f:
@@ -110,7 +120,7 @@ def main():
 
     # Generate customers.csv with schema and anomalies
     customers_path = out/'customers.csv'
-    num_rows = 80000
+    num_rows = int(BASE_CUSTOMERS * args.scale)
     num_malformed = random.randint(int(num_rows*0.005), int(num_rows*0.01))  # 0.5-1% malformed emails
     
     # Calculate number of unique keys and duplicates
@@ -164,7 +174,7 @@ def main():
 
     # Generate products.csv with the specified schema
     products_path = out/'products.csv'
-    num_products = 25000
+    num_products = int(BASE_PRODUCTS * args.scale)
     categories = ['Electronics', 'Clothing', 'Home', 'Toys', 'Books', 'Beauty']
     subcategories = {
         'Electronics': ['Phones', 'Laptops', 'Audio', 'Cameras'],
@@ -224,7 +234,7 @@ def main():
     
     # Generate orders_header.csv with schema, partitioning, and anomalies
     orders_path = out/'orders_header.csv'
-    num_orders = 1000000
+    num_orders = int(BASE_ORDERS * args.scale)
     payment_methods = ['Credit Card', 'PayPal', 'Gift Card', 'Afterpay', 'Cash']
     coupon_codes = [''] + [f'COUPON{str(i).zfill(3)}' for i in range(1, 51)]
     currencies = ['AUD', 'USD', 'EUR']
@@ -265,9 +275,9 @@ def main():
     # Generate orders_lines.csv with schema, partitioning, and anomalies
     order_lines_path = out/'orders_lines.csv'
     # Load order_ids and product_ids from generated files
-    order_ids = list(range(1, 1000001))
-    product_ids = list(range(1, 25001))
-    num_lines = random.randint(3000000, 4000000)
+    order_ids = list(range(1, num_orders + 1))
+    product_ids = list(range(1, num_products + 1))
+    num_lines = random.randint((BASE_ORDER_LINES * args.scale)*3/4,(BASE_ORDER_LINES * args.scale))
     # 1% invalid product_ids
     num_invalid_prod = int(num_lines * 0.01)
     invalid_prod_indices = set(random.sample(range(1, num_lines+1), num_invalid_prod))
@@ -302,7 +312,7 @@ def main():
 
     # Generate events.jsonl with schema, partitioning, and anomalies
     events_path = out/'events.jsonl'
-    num_events = 2000000
+    num_events = int(BASE_EVENTS * args.scale)
     event_types = ['click', 'view', 'purchase', 'login', 'logout', 'error']
     # Prepare anomaly indices
     num_malformed = max(1, int(num_events * 0.0005))
@@ -348,7 +358,7 @@ def main():
 
     # Generate sensors.csv with schema, partitioning, and anomalies
     sensors_path = out/'sensors.csv'
-    num_sensors = random.randint(5000000, 10000000)
+    num_sensors = random.randint((BASE_SENSORS * args.scale)/2, (BASE_SENSORS * args.scale))
     store_ids = list(range(1, 5001))
     shelf_ids = [f'SHELF-{rstr.rstr("[A-Z0-9]{4}")}' for _ in range(100)]
     # Out-of-range anomaly indices
@@ -427,7 +437,7 @@ def main():
 
     # Generate shipments.parquet with schema and anomalies
     shipments_path = out/'shipments.parquet'
-    num_shipments = 1000000
+    num_shipments = int(BASE_ORDERS * args.scale)  # Same as orders
     carriers = ['AUSPOST', 'TNT', 'DHL', 'FEDEX', 'ARAMEX']
     # Prepare anomaly indices
     num_null_delivered = int(num_shipments * 0.01)
@@ -486,7 +496,7 @@ def main():
         dl = None
     returns_base_path = out/'returns_base.parquet'
     returns_evolved_path = out/'returns_evolved.parquet'
-    num_returns = 100000
+    num_returns = int(BASE_ORDERS * 0.1 * args.scale)  # 10% of orders
     order_ids = list(range(1, 1000001))
     product_ids = list(range(1, 25001))
     reasons = ['damaged', 'wrong_item', 'not_needed', 'late', 'other']
