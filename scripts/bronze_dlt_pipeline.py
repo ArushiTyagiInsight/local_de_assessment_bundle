@@ -5,11 +5,17 @@ import pyarrow as pa
 import csv
 import os
 import sys
+import json
 import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from schemas.schemas import *
 from datetime import datetime
+
+def ensure_dir(path):
+    """Ensure directory exists"""
+    if not os.path.exists(path):
+        os.makedirs(path)
 
 def get_dlt_type(pa_type):
     """
@@ -278,13 +284,62 @@ def retail_source(raw_path: str = "data_raw"):
     # Define all resources
     resources = []
     
-    # Load each table
+    # Load dimension tables (full refresh)
     resources.append(load_csv("customers.csv", "customers", create_customer_columns))
     resources.append(load_csv("products.csv", "products", create_product_columns))
     resources.append(load_csv("suppliers.csv", "suppliers", create_supplier_columns))
     resources.append(load_csv("stores.csv", "stores", create_store_columns))
-    resources.append(load_csv("orders_header.csv", "orders_header", create_order_header_columns))
-    resources.append(load_csv("orders_lines.csv", "orders_lines", create_order_lines_columns))
+
+    # Define incremental loading for orders
+    @dlt.resource(
+        name="orders_header",
+        write_disposition="merge",
+        primary_key="order_id",
+        columns=create_order_header_columns()
+    )
+    def orders_header_incremental(updated_after=dlt.sources.incremental("order_ts")):
+        """Load orders header data incrementally based on order_ts"""
+        file_path = os.path.join(raw_path, "orders_header.csv")
+        if not os.path.exists(file_path):
+            print(f"Warning: orders_header.csv not found in {raw_path}, skipping...")
+            return
+            
+        with open(file_path, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                # Convert order_ts and last_value to datetime for comparison
+                row_ts = datetime.fromisoformat(row["order_ts"])
+                last_value = datetime.fromisoformat(updated_after.last_value) if updated_after.last_value else None
+                if not last_value or row_ts > last_value:
+                    yield {**row,
+                          "ingestion_ts": datetime.utcnow(),
+                          "src_filename": "orders_header.csv"}
+    
+    resources.append(orders_header_incremental)
+
+    # Define incremental loading for order lines
+    @dlt.resource(
+        name="orders_lines",
+        write_disposition="merge",
+        primary_key=["order_id", "line_number"],
+        columns=create_order_lines_columns()
+    )
+    def orders_lines_incremental(orders_updated_after= dlt.sources.incremental("order_id")):
+        """Load order lines incrementally based on parent order_header updates"""
+        file_path = os.path.join(raw_path, "orders_lines.csv")
+        if not os.path.exists(file_path):
+            print(f"Warning: orders_lines.csv not found in {raw_path}, skipping...")
+            return
+            
+        with open(file_path, newline='') as csvfile:
+            reader = csv.DictReader(csvfile)
+            for row in reader:
+                if not orders_updated_after.last_value or row["order_id"] > orders_updated_after.last_value:
+                    yield {**row,
+                          "ingestion_ts": datetime.utcnow(),
+                          "src_filename": "orders_lines.csv"}
+
+    resources.append(orders_lines_incremental)
     #resources.append(load_csv("sensors.csv", "sensors", create_sensor_columns))
 
     # Add new data sources if files exist
@@ -302,24 +357,54 @@ def retail_source(raw_path: str = "data_raw"):
             print(f"Warning: {filename} not found in {raw_path}, skipping...")
     
     return resources
+def write_rejects(failed_jobs):
+    """Write failed records to rejects folder"""
+    ensure_dir("lake/_rejects")
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    
+    for job in failed_jobs:
+        resource_name = job.resource_name
+        failed_items = job.items if hasattr(job, 'items') else []
+        
+        if failed_items:
+            reject_file = f"lake/_rejects/{resource_name}_{ts}.json"
+            with open(reject_file, 'w') as f:
+                for item in failed_items:
+                    f.write(json.dumps({
+                        "data": item.data,
+                        "error": str(item.error),
+                        "timestamp": datetime.utcnow().isoformat()
+                    }) + "\n")
+            print(f"Written {len(failed_items)} failed records to {reject_file}")
+
 def run_bronze_pipeline():
     # Create pipeline
     pipeline = dlt.pipeline(
         pipeline_name="retail_bronze",
         destination=duckdb_dest,
         dataset_name="bronze"
-        #,schema_contract_settings={
-        #    "data_type": "evolve",  # Allow schema evolution
-        #    "columns": "complete"    # But require all defined columns
-        #}
     )
     # Load to DuckDB
+    pipeline.drop()
     load_info = pipeline.run(retail_source())
     print("[DLT] DuckDB load_info:")
     print(load_info)
+    
+    # Handle failed records
+    for package in load_info.load_packages:
+        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
+            # Write failed records to rejects folder
+            write_rejects(package.jobs["failed_jobs"])
+    
     # Also write to Parquet
     pipeline.destination = parquet_dest
-    pipeline.run(retail_source())
+    parquet_info = pipeline.run(retail_source())
+    
+    # Handle failed records for Parquet pipeline
+    for package in parquet_info.load_packages:
+        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
+            # Write failed records to rejects folder
+            write_rejects(package.jobs["failed_jobs"])
     # Handle Delta format separately
     #write_to_delta(pipeline.last_trace.last_extract_info)
 
@@ -328,11 +413,8 @@ def run_parquet_pipeline():
         pipeline_name="retail_bronze",
         destination=parquet_dest,
         dataset_name="bronze"
-        #,schema_contract_settings={
-        #    "data_type": "evolve",  # Allow schema evolution
-        #    "columns": "complete"    # But require all defined columns
-        #}
     )
+    pipeline.drop()
     load_info = pipeline.run(retail_source())
     print("[DLT] Parquet load_info:")
     print(load_info)
