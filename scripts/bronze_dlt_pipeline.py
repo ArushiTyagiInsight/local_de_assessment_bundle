@@ -307,10 +307,10 @@ def run_bronze_pipeline():
     pipeline = dlt.pipeline(
         pipeline_name="retail_bronze",
         destination=duckdb_dest,
-        dataset_name="bronze",
-        #schema_contract_settings={
+        dataset_name="bronze"
+        #,schema_contract_settings={
         #    "data_type": "evolve",  # Allow schema evolution
-        #    "columns": "complete"   # But require all defined columns
+        #    "columns": "complete"    # But require all defined columns
         #}
     )
     # Load to DuckDB
@@ -327,10 +327,10 @@ def run_parquet_pipeline():
     pipeline = dlt.pipeline(
         pipeline_name="retail_bronze",
         destination=parquet_dest,
-        dataset_name="bronze",
-        #schema_contract_settings={
+        dataset_name="bronze"
+        #,schema_contract_settings={
         #    "data_type": "evolve",  # Allow schema evolution
-        #    "columns": "complete"   # But require all defined columns
+        #    "columns": "complete"    # But require all defined columns
         #}
     )
     load_info = pipeline.run(retail_source())
