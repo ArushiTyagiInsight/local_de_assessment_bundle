@@ -407,6 +407,7 @@ def run_bronze_pipeline():
             write_rejects(package.jobs["failed_jobs"])
     # Handle Delta format separately
     #write_to_delta(pipeline.last_trace.last_extract_info)
+    
 
 def run_parquet_pipeline():
     pipeline = dlt.pipeline(
