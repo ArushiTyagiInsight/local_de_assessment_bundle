@@ -1,23 +1,68 @@
 {{ config(materialized='table', contract={'enforced': true}) }}
 
 with src as (
-  select * from bronze_customers_parquet
+    select * from read_parquet('{{ lake_root }}/parquet/bronze/customers/*.parquet')--{{ source('bronze', 'customers_parquet') }}
 ),
 typed as (
-  select
-    cast(customer_id as bigint) as customer_id,
-    natural_key,
-    trim(first_name) as first_name,
-    trim(last_name) as last_name,
-    email,
-    phone,
-    address_line1, address_line2, city, state_region, postcode, country_code,
-    cast(latitude as double) as latitude,
-    cast(longitude as double) as longitude,
-    cast(birth_date as date) as birth_date,
-    cast(join_ts as timestamp) as join_ts_utc,
-    cast(is_vip as boolean) as is_vip,
-    cast(gdpr_consent as boolean) as gdpr_consent
-  from src
+  SELECT
+        cast(customer_id as bigint) as customer_id,
+        natural_key,
+        trim(first_name) as first_name,
+        trim(last_name) as last_name,
+        lower(trim(email)) as email,
+        regexp_replace(phone, '[^0-9+]', '') as phone,
+        trim(address_line1) as address_line1,
+        trim(address_line2) as address_line2,
+        initcap(trim(city)) as city,
+        trim(state_region) as state_region,
+        trim(postcode) as postcode,
+        upper(trim(country_code)) as country_code,
+        cast(latitude as double) as latitude,
+        cast(longitude as double) as longitude,
+        cast(birth_date as date) as birth_date,
+        cast(join_ts as timestamp) as join_ts_utc,
+        cast(is_vip as boolean) as is_vip,
+        cast(gdpr_consent as boolean) as gdpr_consent
+    FROM src
+),
+validated AS (
+    SELECT 
+        *,
+        -- Add data quality check columns
+        CASE 
+            WHEN email !~ '^[A-Za-z0-9._%+-]+@[A-Za-z0-9.-]+\.[A-Z|a-z]{2,}$' THEN 'Invalid email format'
+            ELSE NULL 
+        END as email_check,
+        CASE 
+            WHEN birth_date > current_date THEN 'Future date of birth'
+            WHEN birth_date < '1900-01-01' THEN 'Date too old'
+            ELSE NULL 
+        END as birth_date_check,
+        CASE 
+            WHEN country_code !~ '^[A-Z]{2}$' THEN 'Invalid country code'
+            ELSE NULL 
+        END as country_code_check
+    FROM typed
 )
-select * from typed;
+
+SELECT 
+    customer_id,
+    natural_key,
+    email,
+    first_name,
+    last_name,
+    phone,
+    address_line1,
+    address_line2,
+    city,
+    state_region,
+    postcode,
+    country_code,
+    latitude,
+    longitude,
+    birth_date,
+    join_ts_utc,
+    is_vip,
+    gdpr_consent,
+    ARRAY_REMOVE(ARRAY[email_check, birth_date_check, country_code_check], NULL) as quality_checks
+FROM validated
