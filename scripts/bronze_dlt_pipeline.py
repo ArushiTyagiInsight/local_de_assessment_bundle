@@ -208,9 +208,11 @@ duckdb_dest = dlt.destinations.duckdb(
     credentials="duckdb/warehouse.duckdb"
 )
 
+# Configure Parquet destination with explicit settings
 parquet_dest = dlt.destinations.filesystem(
     bucket_url="lake/bronze/parquet",
-    file_format="parquet"
+    file_format="parquet",
+    file_options={"compression": "snappy"}
 )
 
 @dlt.source(name="retail_bronze")
@@ -410,15 +412,39 @@ def run_bronze_pipeline():
     
 
 def run_parquet_pipeline():
+    # Ensure parquet directory exists
+    ensure_dir("lake/bronze/parquet")
+    
+    # Create pipeline with parquet destination
     pipeline = dlt.pipeline(
         pipeline_name="retail_bronze",
         destination=parquet_dest,
         dataset_name="bronze"
     )
+    
+    # Drop existing data for clean slate
     pipeline.drop()
-    load_info = pipeline.run(retail_source())
+    
+    # Run the pipeline and capture load info
+    load_info = pipeline.run(retail_source(), loader_file_format="parquet")  #added this to specify parquet format; it doesn't work without it
     print("[DLT] Parquet load_info:")
     print(load_info)
+    
+    # Handle any failed records
+    if hasattr(load_info, 'load_packages'):
+        for package in load_info.load_packages:
+            if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
+                write_rejects(package.jobs["failed_jobs"])
+    
+    # Also write to Parquet
+    pipeline.destination = parquet_dest
+    parquet_info = pipeline.run(retail_source())
+    
+    # Handle failed records for Parquet pipeline
+    for package in parquet_info.load_packages:
+        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
+            # Write failed records to rejects folder
+            write_rejects(package.jobs["failed_jobs"])
 
 if __name__ == "__main__":
     run_bronze_pipeline()

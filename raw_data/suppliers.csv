@@ -1,0 +1,81 @@
+supplier_id,supplier_code,name,country_code,lead_time_days,preferred
+1,SUP-00AAZ[99,Lopez, Morris and Nelson,AU,20,False
+2,SUP-[-0[6[[}-,Guzman-Brown,GB,14,False
+3,SUP-[-,Young-Le,US,54,False
+4,SUP-[-]0-6}A99,Wells, Barry and Daniel,US,59,False
+5,SUP-}-{6ZA{}Z,Allison, Phillips and Nguyen,IN,34,False
+6,SUP-6}A],Moore PLC,CA,4,False
+7,SUP-[{6Z-,Greene-Campos,JP,28,False
+8,SUP-966A-,Turner and Sons,CN,34,False
+9,SUP-[-],Reynolds-Knight,JP,8,False
+10,SUP-[06A[Z,Anderson Inc,IN,10,False
+11,SUP--]-6,Davis and Sons,DE,7,False
+12,SUP-A],Bryan LLC,AU,22,False
+13,SUP----0][0{0,Jackson, Jones and Johnson,FR,39,False
+14,SUP-[0]]Z{-{-6,Smith-Bonilla,US,49,False
+15,SUP-6ZZ6}[{],Ruiz-Moore,AU,51,False
+16,SUP-{,Miller-Little,DE,5,False
+17,SUP-0,Roach Inc,DE,28,False
+18,SUP--},Barnett, Johnson and Rogers,CA,55,False
+19,SUP-A--]90Z0}Z,Daniel-Evans,CA,7,False
+20,SUP--[A,Wong and Sons,FR,18,False
+21,SUP-]{-96[,Davis Group,GB,55,False
+22,SUP-[Z}0-A,Obrien, Bailey and Velazquez,BR,14,True
+23,SUP--0Z{9-A[,Howell, Holmes and Roberts,DE,58,False
+24,SUP---]-Z-]9,King, Franco and Warner,GB,38,False
+25,SUP-6[}},Collins PLC,IN,35,False
+26,SUP--,Peterson PLC,US,12,False
+27,SUP--Z,Stone-Simmons,CA,33,True
+28,SUP-}}]}[A00,Allison, Ramirez and Barnes,CA,26,False
+29,SUP-[9-0{,Villanueva and Sons,JP,13,False
+30,SUP--A6-{{}A],Martinez-Saunders,FR,21,False
+31,SUP-}Z,Walker-Miller,DE,57,False
+32,SUP-0{0,Carlson Inc,AU,26,False
+33,SUP-0Z-{9-Z9--,Pearson, Gonzalez and Yu,GB,42,False
+34,SUP-6,Holmes LLC,CN,13,False
+35,SUP-{Z[]},Pearson, Harris and Gardner,GB,24,False
+36,SUP-],Richard, Jones and Mccoy,FR,44,True
+37,SUP-AZ[{Z,Howard-Rodriguez,GB,6,False
+38,SUP--}[Z{9],Mason, Davis and Hogan,GB,51,False
+39,SUP-9{0[,Hernandez Inc,FR,53,False
+40,SUP--9Z{[,Hunt, Jordan and Salazar,DE,47,False
+41,SUP-0}A9}},Carr-Sanchez,CN,38,False
+42,SUP-0}-A}Z}9[,Reyes Group,AU,1,False
+43,SUP--[][}{-}ZZ,Nelson-Bell,DE,39,False
+44,SUP-{}9Z,Stevenson and Sons,US,55,False
+45,SUP-9-06[}Z-0,Mitchell-Robinson,BR,22,False
+46,SUP-][{],Patterson, Thomas and Fuentes,DE,5,False
+47,SUP--Z6}[][A,Jefferson PLC,DE,15,False
+48,SUP-0}9]-}-9,Santos Ltd,AU,49,True
+49,SUP-[]0]Z9,Cabrera PLC,AU,31,False
+50,SUP-0A{Z0,Garcia and Sons,AU,59,False
+51,SUP--A][}}Z,Horne Ltd,CN,39,False
+52,SUP-]A0,Logan-Powell,GB,53,False
+53,SUP-6[,Collins Inc,IN,13,True
+54,SUP-Z,Rios Ltd,DE,37,False
+55,SUP--0]}{]-A[,Davidson-Zamora,DE,26,False
+56,SUP-[--]ZZ{{A,Clark-Mayer,DE,55,True
+57,SUP-0-6}-A,Lopez, Hutchinson and Knox,AU,2,False
+58,SUP-A{ZZ-[,Brooks Group,CN,15,False
+59,SUP-}{9,Zimmerman-Walton,GB,3,False
+60,SUP-]9}6[0-{]0,Johnson Inc,CN,32,False
+61,SUP-9ZZA[,Morgan, Beck and Ruiz,CN,28,False
+62,SUP-09{099]Z,Stanley, Adams and Livingston,US,24,False
+63,SUP-6ZZ6A66A-],Daniels PLC,IN,30,False
+64,SUP-ZA-,Hall Inc,CA,21,False
+65,SUP-Z60906}-Z,Grimes Group,IN,31,False
+66,SUP-]9Z006]6}-,Novak-Mora,JP,18,True
+67,SUP-{{AA]],Miller-Duran,CA,27,False
+68,SUP-6{-6}AAA,Everett, Wiley and Moore,BR,49,False
+69,SUP-}{A-[[A,Davies-Taylor,CA,30,False
+70,SUP-Z{06]}6Z-],Quinn PLC,AU,20,False
+71,SUP-{Z,Roberts LLC,AU,39,False
+72,SUP-09--}0,Romero-Smith,CN,38,False
+73,SUP-60,Ellis Inc,JP,28,False
+74,SUP-]6,Riddle-Page,CA,58,True
+75,SUP-Z[0,Montgomery-Hutchinson,FR,59,False
+76,SUP-0Z-9A[6,Mendoza and Sons,CA,47,False
+77,SUP--{]}[-][A,Martinez-Harding,DE,5,False
+78,SUP-A][-Z,Morales Group,AU,7,False
+79,SUP-Z0,Hopkins LLC,CA,10,False
+80,SUP-]]60,Reyes, White and Bryant,FR,27,False
