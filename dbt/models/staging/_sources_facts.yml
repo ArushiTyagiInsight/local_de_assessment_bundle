@@ -1,0 +1,33 @@
+version: 2
+
+sources:
+  - name: bronze
+    description: Bronze layer data from parquet files
+    tables:
+      - name: returns
+        description: Product returns data including reason codes
+        loaded_at_field: ingestion_ts
+        columns:
+          - name: return_id
+            description: Primary key for returns
+            tests:
+              - unique
+              - not_null
+          - name: ingestion_ts
+            description: Timestamp when the record was loaded
+            tests:
+              - not_null
+
+      - name: shipments
+        description: Order shipment tracking data
+        loaded_at_field: ingestion_ts
+        columns:
+          - name: shipment_id
+            description: Primary key for shipments
+            tests:
+              - unique
+              - not_null
+          - name: ingestion_ts
+            description: Timestamp when the record was loaded
+            tests:
+              - not_null

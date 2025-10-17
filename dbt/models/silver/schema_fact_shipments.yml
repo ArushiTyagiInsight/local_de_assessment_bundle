@@ -1,0 +1,65 @@
+version: 2
+
+models:
+  - name: fact_shipments
+    description: Fact table for shipment tracking with incremental processing
+    config:
+      tags: ['fact', 'shipments', 'incremental']
+    columns:
+      - name: shipment_id
+        data_type: bigint
+        tests:
+          - not_null
+          - unique
+        description: Primary key for shipment records
+
+      - name: order_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+        description: Foreign key to orders
+
+      - name: carrier
+        data_type: varchar
+        tests:
+          - not_null
+        description: Shipping carrier name
+
+      - name: shipped_at
+        data_type: timestamp
+        tests:
+          - not_null
+        description: When the shipment was picked up
+
+      - name: delivered_at
+        data_type: timestamp
+        description: When the shipment was delivered (null if in transit)
+
+      - name: ship_cost
+        data_type: decimal(12,2)
+        tests:
+          - not_null
+          - positive_values
+        description: Cost of shipping
+
+      - name: delivery_duration_days
+        data_type: integer
+        description: Number of days between shipment and delivery
+
+      - name: is_late_delivery
+        data_type: boolean
+        description: Flag indicating if delivery exceeded 7-day SLA
+
+      - name: shipment_status
+        data_type: varchar
+        tests:
+          - accepted_values:
+              values: ['DELIVERED', 'IN_TRANSIT', 'UNKNOWN']
+        description: Current status of the shipment
+
+      - name: data_quality_check
+        data_type: varchar
+        description: Any data quality issues found

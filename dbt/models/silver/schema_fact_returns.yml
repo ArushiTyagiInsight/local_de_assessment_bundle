@@ -1,0 +1,83 @@
+version: 2
+
+models:
+  - name: fact_returns
+    description: Fact table for product returns with schema evolution support
+    config:
+      tags: ['fact', 'returns', 'incremental']
+    columns:
+      - name: return_id
+        data_type: bigint
+        tests:
+          - not_null
+          - unique
+        description: Primary key for return records
+
+      - name: order_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+        description: Foreign key to orders
+
+      - name: product_id
+        data_type: bigint
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+        description: Foreign key to products
+
+      - name: return_ts
+        data_type: timestamp
+        tests:
+          - not_null
+        description: When the return was processed
+
+      - name: qty
+        data_type: integer
+        tests:
+          - not_null
+          - positive_values
+        description: Quantity returned
+
+      - name: reason
+        data_type: varchar
+        tests:
+          - not_null
+        description: Return reason description
+
+      - name: return_reason_code
+        data_type: varchar
+        description: Standardized return reason code (added in v2)
+
+      - name: return_date
+        data_type: date
+        tests:
+          - not_null
+        description: Extracted date of return
+
+      - name: return_month
+        data_type: integer
+        tests:
+          - not_null
+        description: Month number of return
+
+      - name: return_year
+        data_type: integer
+        tests:
+          - not_null
+        description: Year of return
+
+      - name: is_bulk_return
+        data_type: boolean
+        tests:
+          - not_null
+        description: Flag for returns with quantity > 10
+
+      - name: data_quality_check
+        data_type: varchar
+        description: Any data quality issues found
