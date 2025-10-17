@@ -1,7 +1,7 @@
 {{ config(materialized='table', contract={'enforced': true}) }}
 
 with src as (
-    select * from read_parquet('{{ lake_root }}/parquet/bronze/customers/*.parquet')--{{ source('bronze', 'customers_parquet') }}
+    select * from read_parquet('../lake/bronze/parquet/bronze/customers/*.parquet')
 ),
 typed as (
   SELECT
@@ -10,10 +10,10 @@ typed as (
         trim(first_name) as first_name,
         trim(last_name) as last_name,
         lower(trim(email)) as email,
-        regexp_replace(phone, '[^0-9+]', '') as phone,
+        phone,--regexp_replace(phone, '[^0-9+]', '') as phone,
         trim(address_line1) as address_line1,
         trim(address_line2) as address_line2,
-        initcap(trim(city)) as city,
+        trim(city) as city,--initcap(trim(city)) as city,
         trim(state_region) as state_region,
         trim(postcode) as postcode,
         upper(trim(country_code)) as country_code,
@@ -64,5 +64,15 @@ SELECT
     join_ts_utc,
     is_vip,
     gdpr_consent,
-    ARRAY_REMOVE(ARRAY[email_check, birth_date_check, country_code_check], NULL) as quality_checks
+    CASE 
+        WHEN email_check IS NOT NULL 
+        OR birth_date_check IS NOT NULL 
+        OR country_code_check IS NOT NULL 
+        THEN concat_ws(', ',
+            NULLIF(email_check, ''),
+            NULLIF(birth_date_check, ''),
+            NULLIF(country_code_check, '')
+        )
+        ELSE NULL
+    END as quality_checks
 FROM validated

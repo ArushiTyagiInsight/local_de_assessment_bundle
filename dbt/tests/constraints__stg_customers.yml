@@ -1,6 +1,48 @@
 version: 2
 models:
   - name: stg_customers
+    config:
+      contract:
+        enforced: true
     columns:
       - name: customer_id
-        tests: [not_null, unique]
+        data_type: bigint
+        constraints:
+          - type: not_null
+          - type: unique
+      - name: natural_key
+        data_type: varchar
+      - name: first_name
+        data_type: varchar
+      - name: last_name
+        data_type: varchar
+      - name: email
+        data_type: varchar
+      - name: phone
+        data_type: varchar
+      - name: address_line1
+        data_type: varchar
+      - name: address_line2
+        data_type: varchar
+      - name: city
+        data_type: varchar
+      - name: state_region
+        data_type: varchar
+      - name: postcode
+        data_type: varchar
+      - name: country_code
+        data_type: varchar
+      - name: latitude
+        data_type: double
+      - name: longitude
+        data_type: double
+      - name: birth_date
+        data_type: date
+      - name: join_ts_utc
+        data_type: timestamp
+      - name: is_vip
+        data_type: boolean
+      - name: gdpr_consent
+        data_type: boolean
+      - name: quality_checks
+        data_type: varchar
