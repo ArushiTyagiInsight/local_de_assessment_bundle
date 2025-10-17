@@ -1,0 +1,50 @@
+version: 2
+
+models:
+  - name: stg_supplier
+    description: Staging model for supplier data with data quality checks
+    columns:
+      - name: supplier_id
+        data_type: bigint
+        tests:
+          - not_null
+          - unique
+        description: Primary key for supplier records
+      
+      - name: supplier_code
+        data_type: varchar
+        tests:
+          - not_null
+          - unique
+        description: Business identifier for supplier
+      
+      - name: name
+        data_type: varchar
+        tests:
+          - not_null
+        description: Supplier business name
+      
+      - name: country_code
+        data_type: varchar
+        tests:
+          - not_null
+          - length:
+              value: 2
+        description: Two-letter ISO country code where supplier is based
+      
+      - name: lead_time_days
+        data_type: integer
+        tests:
+          - not_null
+          - positive_values
+        description: Standard lead time in days for orders from this supplier
+      
+      - name: preferred
+        data_type: boolean
+        tests:
+          - not_null
+        description: Indicates if this is a preferred supplier
+      
+      - name: quality_checks
+        data_type: varchar
+        description: Concatenated list of any data quality issues found

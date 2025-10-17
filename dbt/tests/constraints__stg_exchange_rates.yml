@@ -1,0 +1,36 @@
+version: 2
+
+models:
+  - name: stg_exchange_rates
+    description: Staging model for daily currency exchange rates
+    columns:
+      - name: date
+        data_type: date
+        tests:
+          - not_null
+        description: The date for which the exchange rate is valid
+      
+      - name: currency
+        data_type: varchar
+        tests:
+          - not_null
+          - regex:
+              pattern: '^[A-Z]{3}$'
+        description: Three-letter ISO currency code
+      
+      - name: rate_to_aud
+        data_type: decimal(18,8)
+        tests:
+          - not_null
+          - positive_values
+        description: Exchange rate from the given currency to AUD
+      
+      - name: quality_checks
+        data_type: varchar
+        description: Concatenated list of any data quality issues found
+
+    tests:
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - date
+            - currency

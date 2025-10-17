@@ -1,0 +1,72 @@
+version: 2
+
+models:
+  - name: stg_products
+    description: Staging model for product data with data quality checks
+    columns:
+      - name: product_id
+        data_type: bigint
+        tests:
+          - not_null
+          - unique
+        description: Primary key for product records
+
+      - name: sku
+        data_type: varchar
+        tests:
+          - not_null
+          - unique
+          - regex:
+              pattern: '^SKU-[A-Z0-9]{6}$'
+        description: Stock Keeping Unit - unique product identifier
+
+      - name: name
+        data_type: varchar
+        tests:
+          - not_null
+        description: Product name
+
+      - name: category
+        data_type: varchar
+        tests:
+          - not_null
+        description: Main product category
+
+      - name: subcategory
+        data_type: varchar
+        tests:
+          - not_null
+        description: Product subcategory
+
+      - name: current_price
+        data_type: decimal(12,4)
+        tests:
+          - not_null
+          - positive_values
+        description: Current price of the product
+
+      - name: currency
+        data_type: varchar
+        tests:
+          - not_null
+        description: Currency of the price
+
+      - name: introduced_dt
+        data_type: date
+        tests:
+          - not_null
+        description: Date when product was introduced
+
+      - name: discontinued_dt
+        data_type: date
+        description: Date when product was discontinued (null if still active)
+
+      - name: is_discontinued
+        data_type: boolean
+        tests:
+          - not_null
+        description: Flag indicating if product is discontinued
+
+      - name: quality_checks
+        data_type: varchar
+        description: Concatenated list of any data quality issues found

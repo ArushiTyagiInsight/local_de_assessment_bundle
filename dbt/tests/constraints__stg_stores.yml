@@ -1,0 +1,41 @@
+version: 2
+
+models:
+  - name: stg_stores
+    description: Staging model for store data with data quality checks
+    columns:
+      - name: store_id
+        data_type: bigint
+        tests:
+          - not_null
+          - unique
+      - name: store_code
+        data_type: varchar
+        tests:
+          - not_null
+      - name: name
+        data_type: varchar
+        tests:
+          - not_null
+      - name: channel
+        data_type: varchar
+        tests:
+          - not_null
+      - name: region
+        data_type: varchar
+      - name: state
+        data_type: varchar
+      - name: latitude
+        data_type: double
+      - name: longitude
+        data_type: double
+      - name: open_dt
+        data_type: timestamp
+        tests:
+          - not_null
+      - name: close_dt
+        data_type: timestamp
+      - name: close_dt__v_text
+        data_type: varchar
+      - name: quality_checks
+        data_type: varchar
