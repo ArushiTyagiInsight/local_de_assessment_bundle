@@ -1,0 +1,184 @@
+version: 2
+
+models:
+  - name: products
+    description: Silver layer enriched products dimension
+    config:
+      tags: ['silver', 'products', 'dimension']
+    columns:
+      - name: product_id
+        description: Primary key for products
+        tests:
+          - unique
+          - not_null
+      - name: product_status
+        description: Derived status (Active/Discontinued/Out of Stock)
+        tests:
+          - accepted_values:
+              values: ['Active', 'Discontinued', 'Out of Stock']
+      - name: days_in_catalog
+        description: Number of days product has been in catalog
+        tests:
+          - not_null
+
+  - name: stores
+    description: Silver layer enriched stores dimension
+    config:
+      tags: ['silver', 'stores', 'dimension']
+    columns:
+      - name: store_id
+        description: Primary key for stores
+        tests:
+          - unique
+          - not_null
+      - name: store_status
+        description: Current store status
+        tests:
+          - accepted_values:
+              values: ['Active', 'Closed']
+      - name: days_operating
+        description: Total days store has been operating
+        tests:
+          - not_null
+
+  - name: suppliers
+    description: Silver layer enriched suppliers dimension
+    config:
+      tags: ['silver', 'suppliers', 'dimension']
+    columns:
+      - name: supplier_id
+        description: Primary key for suppliers
+        tests:
+          - unique
+          - not_null
+      - name: supplier_tier
+        description: Supplier categorization
+        tests:
+          - accepted_values:
+              values: ['Preferred', 'Standard']
+      - name: lead_time_category
+        description: Categorized lead time
+        tests:
+          - accepted_values:
+              values: ['Fast', 'Medium', 'Slow']
+
+  - name: exchange_rates
+    description: Silver layer enriched exchange rates with trends
+    config:
+      tags: ['silver', 'exchange_rates', 'dimension']
+    columns:
+      - name: date
+        description: Rate date
+        tests:
+          - not_null
+      - name: currency
+        description: Currency code
+        tests:
+          - not_null
+      - name: rate_to_aud
+        description: Exchange rate to AUD
+        tests:
+          - not_null
+          - positive_values
+
+  - name: fact_returns
+    description: Fact table for product returns with schema evolution support
+    config:
+      tags: ['fact', 'returns', 'incremental']
+    columns:
+      - name: return_id
+        description: Primary key for return records
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to orders
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+      - name: product_id
+        description: Foreign key to products
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: return_ts
+        description: When the return was processed
+        tests:
+          - not_null
+      - name: qty
+        description: Quantity returned
+        tests:
+          - not_null
+          - positive_values
+      - name: reason
+        description: Return reason description
+        tests:
+          - not_null
+      - name: return_reason_code
+        description: Standardized return reason code (added in v2)
+      - name: return_date
+        description: Extracted date of return
+        tests:
+          - not_null
+      - name: return_month
+        description: Month number of return
+        tests:
+          - not_null
+      - name: return_year
+        description: Year of return
+        tests:
+          - not_null
+      - name: is_bulk_return
+        description: Flag for returns with quantity > 10
+        tests:
+          - not_null
+      - name: data_quality_check
+        description: Any data quality issues found
+
+  - name: fact_shipments
+    description: Fact table for shipment tracking with incremental processing
+    config:
+      tags: ['fact', 'shipments', 'incremental']
+    columns:
+      - name: shipment_id
+        description: Primary key for shipment records
+        tests:
+          - not_null
+          - unique
+      - name: order_id
+        description: Foreign key to orders
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+      - name: carrier
+        description: Shipping carrier name
+        tests:
+          - not_null
+      - name: shipped_at
+        description: When the shipment was picked up
+        tests:
+          - not_null
+      - name: delivered_at
+        description: When the shipment was delivered (null if in transit)
+      - name: ship_cost
+        description: Cost of shipping
+        tests:
+          - not_null
+          - positive_values
+      - name: delivery_duration_days
+        description: Number of days between shipment and delivery
+      - name: is_late_delivery
+        description: Flag indicating if delivery exceeded 7-day SLA
+      - name: shipment_status
+        description: Current status of the shipment
+        tests:
+          - accepted_values:
+              values: ['DELIVERED', 'IN_TRANSIT', 'UNKNOWN']
+      - name: data_quality_check
+        description: Any data quality issues found
