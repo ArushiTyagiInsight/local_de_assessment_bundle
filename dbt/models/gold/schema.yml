@@ -1,0 +1,202 @@
+version: 2
+
+models:
+  - name: dim_customer
+    description: Customer dimension with privacy controls and derived attributes
+    config:
+      materialized: table
+      tags: ['gold', 'dimension', 'customer']
+    columns:
+      - name: customer_sk
+        description: Surrogate key for customer dimension
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Natural key from source
+        tests:
+          - not_null
+      - name: customer_name
+        description: Customer full name (masked if no GDPR consent)
+      - name: email
+        description: Email address (hashed if no GDPR consent)
+      - name: phone
+        description: Phone number (masked if no GDPR consent)
+      - name: address
+        description: Street address (generalized to city if no GDPR consent)
+      - name: city
+        description: City name
+      - name: state
+        description: State/province
+      - name: country
+        description: Country
+      - name: postal_code
+        description: Postal code (masked if no GDPR consent)
+      - name: customer_age
+        description: Calculated customer age
+      - name: customer_lifetime_days
+        description: Days since first order
+      - name: customer_segment
+        description: Customer segment based on VIP status and join date
+      - name: gdpr_consent
+        description: Flag indicating GDPR consent status
+      - name: is_active
+        description: Current activity status
+      - name: join_date
+        description: Date customer joined
+      - name: last_order_date
+        description: Date of most recent order
+  # Dimension Tables
+  - name: dim_product
+    description: Type 2 SCD product dimension with historical tracking
+    config:
+      materialized: table
+      tags: ['gold', 'dimension', 'product']
+    columns:
+      - name: product_sk
+        description: Surrogate key for product dimension
+        tests:
+          - unique
+          - not_null
+      - name: product_id
+        description: Natural key from source
+        tests:
+          - not_null
+      - name: product_name
+        description: Current product name
+      - name: category
+        description: Product category
+      - name: subcategory
+        description: Product subcategory
+      - name: unit_price
+        description: Current unit price
+      - name: effective_from
+        description: When this version became active
+        tests:
+          - not_null
+      - name: effective_to
+        description: When this version was superseded
+      - name: is_current
+        description: Flag for current version
+        tests:
+          - not_null
+      - name: price_change_flag
+        description: Indicates if price changed from previous version
+      - name: days_in_catalog
+        description: Number of days product has been in catalog
+      - name: product_status
+        description: Current product status (Active/Discontinued/Out of Stock)
+
+  - name: dim_store
+    description: Store dimension with derived attributes
+    config:
+      materialized: table
+      tags: ['gold', 'dimension', 'store']
+    columns:
+      - name: store_sk
+        description: Surrogate key for store dimension
+        tests:
+          - unique
+          - not_null
+      - name: store_id
+        description: Natural key from source
+        tests:
+          - not_null
+      - name: store_name
+        description: Store name
+      - name: store_type
+        description: Type of store
+      - name: region
+        description: Store region
+      - name: country
+        description: Store country
+      - name: store_status
+        description: Operational status
+      - name: days_operating
+        description: Number of days store has been operating
+      - name: store_size_category
+        description: Size category based on floor space
+      - name: latitude
+        description: Store latitude
+      - name: longitude
+        description: Store longitude
+
+  - name: dim_supplier
+    description: Supplier dimension with performance metrics
+    config:
+      materialized: table
+      tags: ['gold', 'dimension', 'supplier']
+    columns:
+      - name: supplier_sk
+        description: Surrogate key for supplier dimension
+        tests:
+          - unique
+          - not_null
+      - name: supplier_id
+        description: Natural key from source
+        tests:
+          - not_null
+      - name: supplier_name
+        description: Supplier name
+      - name: supplier_category
+        description: Supplier category
+      - name: country
+        description: Supplier country
+      - name: region
+        description: Geographical region
+      - name: supplier_tier
+        description: Performance tier (Preferred/Standard)
+      - name: lead_time_category
+        description: Lead time classification
+      - name: active_products_count
+        description: Count of active products from supplier
+
+  - name: dim_date
+    description: Date dimension with calendar and fiscal attributes
+    config:
+      materialized: table
+      tags: ['gold', 'dimension', 'date']
+    columns:
+      - name: date_sk
+        description: Surrogate key (YYYYMMDD format)
+        tests:
+          - unique
+          - not_null
+      - name: date_day
+        description: Date in DATE format
+        tests:
+          - unique
+          - not_null
+      - name: day_name
+        description: Name of day (Monday, Tuesday, etc.)
+      - name: day_of_week
+        description: Day number of week (1-7)
+      - name: day_of_month
+        description: Day number of month (1-31)
+      - name: day_of_year
+        description: Day number of year (1-366)
+      - name: week_of_year
+        description: ISO week number (1-53)
+      - name: month_name
+        description: Month name (January, February, etc.)
+      - name: month_number
+        description: Month number (1-12)
+      - name: quarter_number
+        description: Quarter number (1-4)
+      - name: year_number
+        description: Year (YYYY)
+      - name: fiscal_month
+        description: Fiscal month number
+      - name: fiscal_quarter
+        description: Fiscal quarter number
+      - name: fiscal_year
+        description: Fiscal year
+      - name: is_weekend
+        description: Weekend indicator (True/False)
+      - name: is_holiday
+        description: Holiday indicator (True/False)
+      - name: holiday_name
+        description: Name of holiday if applicable
+
+  # Fact Tables
+  
