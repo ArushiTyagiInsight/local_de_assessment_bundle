@@ -21,10 +21,5 @@ SELECT
         WHEN preferred THEN 'Preferred'
         ELSE 'Standard'
     END as supplier_tier,
-    CASE
-        WHEN lead_time_days <= 7 THEN 'Fast'
-        WHEN lead_time_days <= 14 THEN 'Medium'
-        ELSE 'Slow'
-    END as lead_time_category,
     quality_checks
 FROM stg_suppliers
