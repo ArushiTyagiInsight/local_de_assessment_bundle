@@ -1,3 +1,3 @@
 packages:
-  # No packages required for this project currently
-  []
+  - package: dbt-labs/dbt_utils
+    version: 1.1.1  # Latest stable version

@@ -15,6 +15,7 @@ clean-targets: ['target']
 
 vars:
   lake_root: '../lake/bronze'
+  surrogate_key_treat_nulls_as_empty_strings: true
 
 models:
   local_de_assessment:
