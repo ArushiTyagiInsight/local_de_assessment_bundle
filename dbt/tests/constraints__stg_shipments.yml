@@ -1,0 +1,30 @@
+version: 2
+models:
+  - name: stg_shipments
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: shipment_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+          - type: unique
+      - name: order_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: carrier
+        data_type: varchar
+        constraints:
+          - type: not_null
+      - name: shipped_at
+        data_type: timestamp
+        constraints:
+          - type: not_null
+      - name: delivered_at
+        data_type: timestamp
+      - name: ship_cost
+        data_type: numeric(12,2)
+      - name: quality_checks
+        data_type: varchar
