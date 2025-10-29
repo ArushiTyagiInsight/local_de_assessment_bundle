@@ -37,3 +37,4 @@ SELECT
         )
         ELSE NULL
     END as quality_checks
+FROM validated

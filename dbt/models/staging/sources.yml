@@ -1,0 +1,22 @@
+version: 2
+
+sources:
+  - name: bronze
+    schema: bronze
+    tables:
+      - name: exchange_rates
+        description: Exchange rates data from the bronze layer
+        columns:
+          - name: date
+            description: The date of the exchange rate
+            tests:
+              - not_null
+          - name: currency
+            description: The currency code
+            tests:
+              - not_null
+          - name: rate_to_aud
+            description: Exchange rate to AUD
+            tests:
+              - not_null
+              - positive_value
