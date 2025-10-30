@@ -1,6 +1,6 @@
 version: 2
 models:
-  - name: stg_returns
+  - name: stg_returns_evolved
     config:
       contract:
         enforced: true

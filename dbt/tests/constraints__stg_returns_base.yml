@@ -1,0 +1,19 @@
+version: 2
+models:
+  - name: stg_returns_base
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: return_id
+        data_type: bigint
+      - name: order_id
+        data_type: bigint
+      - name: product_id
+        data_type: bigint
+      - name: return_ts
+        data_type: timestamp
+      - name: qty
+        data_type: integer
+      - name: reason
+        data_type: varchar

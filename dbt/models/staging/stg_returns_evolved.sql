@@ -1,7 +1,7 @@
 {{ config(materialized='table', contract={'enforced': true}) }}
 
 with src as (
-    select * from read_parquet('../lake/bronze/parquet/bronze/returns_upsert/*.parquet')
+    select * from read_parquet('../lake/bronze/parquet/bronze/returns_evolved/*.parquet')
 ),
 typed as (
     SELECT
