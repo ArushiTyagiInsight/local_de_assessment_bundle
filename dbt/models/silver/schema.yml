@@ -1,6 +1,207 @@
 version: 2
 
 models:
+  - name: fact_order_lines
+    description: Silver layer fact table combining order header and line item details
+    config:
+      tags: ['silver', 'orders', 'fact']
+    columns:
+      - name: order_id
+        description: Foreign key to orders
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+      - name: line_number
+        description: Line item number within the order
+        tests:
+          - not_null
+      - name: product_id
+        description: Foreign key to products
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: customer_id
+        description: Foreign key to customers
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_customers')
+              field: customer_id
+      - name: store_id
+        description: Foreign key to stores
+        tests:
+          - not_null
+      - name: order_ts_utc
+        description: Order timestamp in UTC
+        tests:
+          - not_null
+      - name: order_dt_local
+        description: Local date of the order
+        tests:
+          - not_null
+      - name: channel
+        description: Sales channel (web, mobile, store)
+        tests:
+          - accepted_values:
+              values: ['web', 'mobile', 'store']
+      - name: payment_method
+        description: Method of payment
+        tests:
+          - not_null
+      - name: coupon_code
+        description: Coupon code applied to the order, if any
+      - name: currency_code
+        description: Currency code for the order
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD', 'AUD', 'EUR', 'GBP']
+      - name: quantity
+        description: Quantity ordered
+        tests:
+          - not_null
+          - positive
+      - name: unit_price_usd
+        description: Unit price in USD
+        tests:
+          - not_null
+          - positive
+      - name: line_discount_pct
+        description: Discount percentage applied to line
+        tests:
+          - range_check:
+              min_value: 0
+              max_value: 100
+      - name: tax_pct
+        description: Tax percentage applied to line
+        tests:
+          - range_check:
+              min_value: 0
+              max_value: 100
+      - name: discount_amount_usd
+        description: Calculated discount amount in USD
+        tests:
+          - not_null
+          - positive
+      - name: line_total_usd
+        description: Total amount for line item in USD (including tax, after discount)
+        tests:
+          - not_null
+          - positive
+      - name: shipping_fee_usd
+        description: Shipping fee in USD for the order
+        tests:
+          - positive
+      - name: has_quality_issues
+        description: Flag indicating presence of quality issues (Y/N)
+        tests:
+          - accepted_values:
+              values: ['Y', 'N']
+      - name: all_quality_checks
+        description: Concatenated list of all quality check failures
+  - name: fact_returns_base
+    description: Silver layer fact table for base returns data
+    config:
+      tags: ['silver', 'returns', 'fact']
+    columns:
+      - name: return_id
+        description: Primary key for returns
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: Foreign key to orders
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+      - name: product_id
+        description: Foreign key to products
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: return_ts
+        description: Timestamp of the return
+        tests:
+          - not_null
+      - name: return_date
+        description: Date of return (truncated from timestamp)
+        tests:
+          - not_null
+      - name: qty
+        description: Quantity returned
+        tests:
+          - not_null
+          - positive
+      - name: estimated_return_value_usd
+        description: Calculated return value based on order amount and quantity
+      - name: processed_ts
+        description: Processing timestamp for the record
+        tests:
+          - not_null
+
+  - name: fact_returns_evolved
+    description: Silver layer fact table for evolved returns data with additional fields and quality checks
+    config:
+      tags: ['silver', 'returns', 'fact']
+    columns:
+      - name: return_id
+        description: Primary key for returns
+        tests:
+          - unique
+          - not_null
+      - name: order_id
+        description: Foreign key to orders
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_orders_header')
+              field: order_id
+      - name: product_id
+        description: Foreign key to products
+        tests:
+          - not_null
+          - relationships:
+              to: ref('stg_products')
+              field: product_id
+      - name: return_ts
+        description: Timestamp of the return
+        tests:
+          - not_null
+      - name: return_date
+        description: Date of return (truncated from timestamp)
+        tests:
+          - not_null
+      - name: qty
+        description: Quantity returned
+        tests:
+          - not_null
+          - positive
+      - name: reason
+        description: Text description of return reason
+      - name: return_reason_code
+        description: Standardized code for return reason
+      - name: reason_category
+        description: Categorized return reason
+        tests:
+          - accepted_values:
+              values: ['Defective', 'Wrong Size', 'Style/Preference', 'Late Delivery', 'Other', 'Unknown']
+      - name: estimated_return_value_usd
+        description: Calculated return value based on order amount and quantity
+      - name: quality_checks
+        description: Concatenated list of quality check failures
+      - name: processed_ts
+        description: Processing timestamp for the record
+        tests:
+          - not_null
+
   - name: products
     description: Silver layer enriched products dimension
     config:
