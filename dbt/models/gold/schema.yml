@@ -1,6 +1,103 @@
 version: 2
 
 models:
+  - name: fct_shipments
+    description: Fact table for shipment tracking and delivery SLA analysis
+    config:
+      materialized: table
+      tags: ['gold', 'fact', 'shipping']
+    columns:
+      # Keys
+      - name: shipment_id
+        description: Unique identifier for the shipment (derived from order_id)
+        tests:
+          - unique
+          - not_null
+      - name: customer_id
+        description: Foreign key to dim_customer
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: store_id
+        description: Foreign key to dim_store
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_store')
+              field: store_id
+
+      # Timestamps
+      - name: shipment_ts_utc
+        description: Shipment timestamp in UTC
+        tests:
+          - not_null
+      - name: shipment_dt_local
+        description: Local date of shipment
+        tests:
+          - not_null
+      - name: shipment_year
+        description: Year of shipment
+      - name: shipment_month
+        description: Month of shipment (1-12)
+      - name: shipment_day_of_week
+        description: Day of week (0-6)
+
+      # Delivery Details
+      - name: delivery_channel
+        description: Channel through which order was delivered
+        tests:
+          - accepted_values:
+              values: ['web', 'mobile', 'store']
+
+      # Measures
+      - name: shipping_cost
+        description: Cost of shipping in USD
+        tests:
+          - not_null
+          - positive
+      - name: delivery_days
+        description: Actual number of days taken for delivery
+        tests:
+          - not_null
+          - positive
+      - name: expected_delivery_days
+        description: Expected delivery days based on channel SLA
+        tests:
+          - not_null
+          - positive
+
+      # SLA Metrics
+      - name: on_time_flag
+        description: Flag indicating if delivery met SLA (Y/N)
+        tests:
+          - accepted_values:
+              values: ['Y', 'N']
+      - name: sla_compliant
+        description: Binary indicator for SLA compliance (1=compliant, 0=non-compliant)
+        tests:
+          - accepted_values:
+              values: [0, 1]
+      - name: days_overdue
+        description: Number of days delivery exceeded SLA (0 if on time)
+        tests:
+          - positive
+
+      # Quality Tracking
+      - name: has_quality_issues
+        description: Flag indicating presence of data quality issues
+        tests:
+          - accepted_values:
+              values: ['Y', 'N']
+      - name: all_quality_checks
+        description: Details of any quality issues identified
+
+      # Metadata
+      - name: processed_ts
+        description: Timestamp when record was processed
+        tests:
+          - not_null
   - name: fct_sales
     description: Fact table containing all sales transactions at the order line level
     config:
