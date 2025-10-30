@@ -1,6 +1,138 @@
 version: 2
 
 models:
+  - name: fct_sales
+    description: Fact table containing all sales transactions at the order line level
+    config:
+      materialized: table
+      tags: ['gold', 'fact', 'sales']
+    columns:
+      # Degenerate Dimensions
+      - name: order_number
+        description: Order identifier
+        tests:
+          - not_null
+      - name: line_item_number
+        description: Line item number within the order
+        tests:
+          - not_null
+
+      # Foreign Keys
+      - name: customer_id
+        description: Foreign key to dim_customer
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      - name: product_id
+        description: Foreign key to dim_product
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product')
+              field: product_id
+      - name: store_id
+        description: Foreign key to dim_store
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_store')
+              field: store_id
+
+      # Date/Time Attributes
+      - name: order_ts_utc
+        description: Order timestamp in UTC
+        tests:
+          - not_null
+      - name: order_dt_local
+        description: Local date of the order
+        tests:
+          - not_null
+      - name: order_year
+        description: Year of order
+      - name: order_month
+        description: Month of order (1-12)
+      - name: order_day
+        description: Day of month
+      - name: order_day_of_week
+        description: Day of week (0-6)
+
+      # Channel and Payment
+      - name: channel
+        description: Sales channel (web, mobile, store)
+        tests:
+          - accepted_values:
+              values: ['web', 'mobile', 'store']
+      - name: payment_method
+        description: Method of payment
+        tests:
+          - not_null
+      
+      # Order Attributes
+      - name: coupon_code
+        description: Coupon code applied to the order, if any
+      - name: currency_code
+        description: Currency code for the transaction
+        tests:
+          - not_null
+          - accepted_values:
+              values: ['USD', 'AUD', 'EUR', 'GBP']
+
+      # Measures
+      - name: quantity
+        description: Number of items ordered
+        tests:
+          - not_null
+          - positive
+      - name: unit_price
+        description: Price per unit in USD
+        tests:
+          - not_null
+          - positive
+      - name: gross_amount
+        description: Total amount before discounts and tax (quantity × unit_price)
+        tests:
+          - not_null
+      - name: discount_amount
+        description: Total discount applied to the line
+        tests:
+          - not_null
+      - name: tax_amount
+        description: Total tax applied to the line
+        tests:
+          - not_null
+      - name: net_amount
+        description: Amount after discounts but before tax
+        tests:
+          - not_null
+      - name: line_total
+        description: Final line amount including discounts and tax
+        tests:
+          - not_null
+      
+      # Percentages
+      - name: discount_percentage
+        description: Discount percentage applied
+        tests:
+          - range_check:
+              min_value: 0
+              max_value: 100
+      - name: tax_percentage
+        description: Tax percentage applied
+        tests:
+          - range_check:
+              min_value: 0
+              max_value: 100
+
+      # Quality Flags
+      - name: has_quality_issues
+        description: Flag indicating presence of data quality issues
+        tests:
+          - accepted_values:
+              values: ['Y', 'N']
+      - name: all_quality_checks
+        description: Details of any quality issues identified
   - name: dim_customer
     description: Customer dimension with privacy controls and derived attributes
     config:
