@@ -1,0 +1,50 @@
+version: 2
+models:
+  - name: stg_orders_header
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: order_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+          - type: unique
+      - name: order_ts_utc
+        data_type: timestamp
+        constraints:
+          - type: not_null
+      - name: order_dt_local
+        data_type: date
+      - name: customer_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: store_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: channel
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['web', 'mobile', 'store']
+      - name: payment_method
+        data_type: varchar
+      - name: coupon_code
+        data_type: varchar
+      - name: shipping_fee_usd
+        data_type: decimal(12,2)
+        constraints:
+          - type: check
+            expression: "shipping_fee_usd >= 0"
+            error_message: "Shipping fee must be non-negative"
+      - name: currency_code
+        data_type: varchar
+        tests:
+          - accepted_values:
+              arguments:
+                values: ['USD', 'AUD', 'EUR', 'GBP']
+      - name: quality_checks
+        data_type: varchar
