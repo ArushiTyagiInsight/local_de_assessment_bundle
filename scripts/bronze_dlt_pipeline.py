@@ -10,7 +10,7 @@ import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
 
 from schemas.schemas import *
-from datetime import datetime
+from datetime import datetime, timezone
 
 def ensure_dir(path):
     """Ensure directory exists"""
@@ -181,11 +181,6 @@ def create_returns_evolved_columns():
     }
     return dlt_columns
 
-def create_returns_upsert_columns():
-    """Create DLT column definitions for returns table with upserts and deletes"""
-    # Use the same schema as evolved since structure is the same
-    return create_returns_evolved_columns()
-
 def create_shipments_columns():
     """Create DLT column definitions for shipments table"""
     dlt_columns = {}
@@ -202,6 +197,21 @@ def create_shipments_columns():
         dlt_columns[field.name] = col_def
     return dlt_columns
 
+def create_sensor_columns():
+    """Create DLT column definitions for sensors table"""
+    dlt_columns = {}
+    for field in sensors_schema:
+        col_def = {
+            "data_type": get_dlt_type(field.type),
+            "nullable": field.nullable  # Use the nullable property from PyArrow schema
+        }
+        if isinstance(field.type, pa.Decimal128Type):
+            col_def["precision"] = field.type.precision
+            col_def["scale"] = field.type.scale
+        if field.name == "sensor_ts":
+            col_def["data_type"] = "timestamp"
+    return dlt_columns
+
 
 # Configure destinations
 duckdb_dest = dlt.destinations.duckdb(
@@ -210,40 +220,95 @@ duckdb_dest = dlt.destinations.duckdb(
 
 # Configure Parquet destination with explicit settings
 parquet_dest = dlt.destinations.filesystem(
-    bucket_url="lake/bronze/parquet",
+    bucket_url=os.path.abspath("lake/bronze/parquet"),
     file_format="parquet",
     file_options={"compression": "snappy"}
 )
 
 @dlt.source(name="retail_bronze")
 def retail_source(raw_path: str = "data_raw"):
-    def load_csv(filename, resource_name, schema_func):
+    def load_csv(filename, resource_name, schema_func, options=None):
         """Helper function to load CSV files with consistent audit columns"""
-        @dlt.resource(
-            name=resource_name,
-            write_disposition="replace",
-            columns=schema_func()
-        )
+        resource_config = {
+            "name": resource_name,
+            "write_disposition": "replace",
+            "file_format": "parquet"  # Default to parquet
+        }
+        
+        # Handle schema function - could be a function or lambda
+        if callable(schema_func):
+            columns = schema_func()
+            resource_config["columns"] = columns
+            
+        # Add any additional options
+        if options:
+            resource_config.update(options)
+        
+        @dlt.resource(**resource_config)
         def load_data():
             file_path = os.path.join(raw_path, filename)
             count = 0
             with open(file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
+                    # Convert empty strings to None for nullable fields
+                    processed_row = {}
+                    for key, value in row.items():
+                        if value == '':
+                            processed_row[key] = None
+                        elif key == 'sensor_ts' and resource_name == 'sensors':
+                            # Special handling for sensor_ts timestamps
+                            try:
+                                processed_row[key] = datetime.fromisoformat(value.rstrip('Z')).replace(tzinfo=timezone.utc)
+                            except (ValueError, AttributeError):
+                                # Use far future date for NULL sensor timestamps
+                                processed_row[key] = datetime(9999, 12, 31, 23, 59, 59).replace(tzinfo=timezone.utc)
+                        else:
+                            processed_row[key] = value
+                    
                     count += 1
-                    yield {**row, 
-                          "ingestion_ts": datetime.utcnow(),
+                    yield {**processed_row, 
+                          "ingestion_ts": datetime.now(timezone.utc),
                           "src_filename": filename}
             print(f"Loaded {count} rows from {filename}")
         return load_data
 
-    def load_xlsx(filename, resource_name, schema_func, sheet_name=0):
+    def load_jsonl(filename, resource_name, schema_func, options=None):
+        """Helper function to load JSONL files with consistent audit columns"""
+        resource_config = {
+            "name": resource_name,
+            "write_disposition": "replace",
+            "columns": schema_func()
+        }
+        if options:
+            resource_config.update(options)
+        
+        @dlt.resource(**resource_config)
+        def load_data():
+            file_path = os.path.join(raw_path, filename)
+            count = 0
+            with open(file_path, 'r', encoding='utf-8') as f:
+                for line in f:
+                    count += 1
+                    data = json.loads(line)
+                    yield {**data,
+                          "ingestion_ts": datetime.now(timezone.utc),
+                          "src_filename": filename}
+            print(f"Loaded {count} rows from {filename}")
+        return load_data
+
+    def load_xlsx(filename, resource_name, schema_func, options=None, sheet_name=0):
         """Helper function to load Excel files with consistent audit columns"""
-        @dlt.resource(
-            name=resource_name,
-            write_disposition="replace",
-            columns=schema_func()
-        )
+        resource_config = {
+            "name": resource_name,
+            "write_disposition": "replace",
+            "file_format": "parquet",
+            "columns": schema_func()
+        }
+        if options:
+            resource_config.update(options)
+        
+        @dlt.resource(**resource_config)
         def load_data():
             file_path = os.path.join(raw_path, filename)
             # Read Excel file into pandas DataFrame
@@ -257,18 +322,23 @@ def retail_source(raw_path: str = "data_raw"):
             for record in df.to_dict('records'):
                 count += 1
                 yield {**record,
-                      "ingestion_ts": datetime.utcnow(),
+                      "ingestion_ts": datetime.now(timezone.utc),
                       "src_filename": filename}
             print(f"Loaded {count} rows from {filename}")
         return load_data
 
-    def load_parquet(filename, resource_name, schema_func):
+    def load_parquet(filename, resource_name, schema_func, options=None):
         """Helper function to load Parquet files with consistent audit columns"""
-        @dlt.resource(
-            name=resource_name,
-            write_disposition="replace",
-            columns=schema_func()
-        )
+        resource_config = {
+            "name": resource_name,
+            "write_disposition": "replace",
+            "columns": schema_func(),
+            "file_format": "parquet"  # Default to parquet for parquet files
+        }
+        if options:
+            resource_config.update(options)
+        
+        @dlt.resource(**resource_config)
         def load_data():
             file_path = os.path.join(raw_path, filename)
             # Read Parquet file into pandas DataFrame
@@ -278,7 +348,7 @@ def retail_source(raw_path: str = "data_raw"):
             for record in df.to_dict('records'):
                 count += 1
                 yield {**record,
-                      "ingestion_ts": datetime.utcnow(),
+                      "ingestion_ts": datetime.now(timezone.utc),
                       "src_filename": filename}
             print(f"Loaded {count} rows from {filename}")
         return load_data
@@ -297,25 +367,51 @@ def retail_source(raw_path: str = "data_raw"):
         name="orders_header",
         write_disposition="merge",
         primary_key="order_id",
+        file_format="parquet",
         columns=create_order_header_columns()
     )
     def orders_header_incremental(updated_after=dlt.sources.incremental("order_ts")):
-        """Load orders header data incrementally based on order_ts"""
-        file_path = os.path.join(raw_path, "orders_header.csv")
-        if not os.path.exists(file_path):
-            print(f"Warning: orders_header.csv not found in {raw_path}, skipping...")
+        """Load orders header data incrementally based on order_ts from partitioned structure"""
+        orders_base_path = os.path.join(raw_path, "orders")
+        if not os.path.exists(orders_base_path):
+            print(f"Warning: orders directory not found in {raw_path}, skipping...")
             return
             
-        with open(file_path, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                # Convert order_ts and last_value to datetime for comparison
-                row_ts = datetime.fromisoformat(row["order_ts"])
-                last_value = datetime.fromisoformat(updated_after.last_value) if updated_after.last_value else None
-                if not last_value or row_ts > last_value:
-                    yield {**row,
-                          "ingestion_ts": datetime.utcnow(),
-                          "src_filename": "orders_header.csv"}
+        # Walk through all date partitions
+        for dt_folder in os.listdir(orders_base_path):
+            if not dt_folder.startswith("order_dt="):
+                continue
+                
+            partition_path = os.path.join(orders_base_path, dt_folder)
+            orders_file = os.path.join(partition_path, "orders.csv")
+            
+            if not os.path.exists(orders_file):
+                continue
+                
+            print(f"Processing partition: {dt_folder}")  # Add logging
+            with open(orders_file, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    # Convert order_ts to UTC datetime for comparison
+                    row_ts_str = row["order_ts"].rstrip('Z')
+                    row_ts = datetime.fromisoformat(row_ts_str)
+                    if not row_ts.tzinfo:
+                        # If timestamp is naive, assume it's UTC
+                        row_ts = row_ts.replace(tzinfo=timezone.utc)
+                    
+                    # Convert last_value to UTC datetime if it exists
+                    if updated_after.last_value:
+                        last_value = datetime.fromisoformat(updated_after.last_value)
+                        if not last_value.tzinfo:
+                            last_value = last_value.replace(tzinfo=timezone.utc)
+                    else:
+                        last_value = None
+                    
+                    if not last_value or row_ts > last_value:
+                        # Store the original timestamp string to preserve format
+                        yield {**row,
+                              "ingestion_ts": datetime.now(timezone.utc).isoformat(),
+                              "src_filename": f"orders/{dt_folder}/orders.csv"}
     
     resources.append(orders_header_incremental)
 
@@ -324,37 +420,69 @@ def retail_source(raw_path: str = "data_raw"):
         name="orders_lines",
         write_disposition="merge",
         primary_key=["order_id", "line_number"],
+        file_format="parquet",
         columns=create_order_lines_columns()
     )
-    def orders_lines_incremental(orders_updated_after= dlt.sources.incremental("order_id")):
-        """Load order lines incrementally based on parent order_header updates"""
-        file_path = os.path.join(raw_path, "orders_lines.csv")
-        if not os.path.exists(file_path):
-            print(f"Warning: orders_lines.csv not found in {raw_path}, skipping...")
+    def orders_lines_incremental(orders_updated_after=dlt.sources.incremental("order_id")):
+        """Load order lines incrementally from partitioned structure"""
+        orders_base_path = os.path.join(raw_path, "orders")
+        if not os.path.exists(orders_base_path):
+            print(f"Warning: orders directory not found in {raw_path}, skipping...")
             return
             
-        with open(file_path, newline='') as csvfile:
-            reader = csv.DictReader(csvfile)
-            for row in reader:
-                if not orders_updated_after.last_value or row["order_id"] > orders_updated_after.last_value:
-                    yield {**row,
-                          "ingestion_ts": datetime.utcnow(),
-                          "src_filename": "orders_lines.csv"}
+        # Walk through all date partitions
+        for dt_folder in os.listdir(orders_base_path):
+            if not dt_folder.startswith("order_dt="):
+                continue
+                
+            partition_path = os.path.join(orders_base_path, dt_folder)
+            order_lines_file = os.path.join(partition_path, "order_lines.csv")
+            
+            if not os.path.exists(order_lines_file):
+                continue
+                
+            print(f"Processing order lines partition: {dt_folder}")  # Add logging
+            with open(order_lines_file, newline='') as csvfile:
+                reader = csv.DictReader(csvfile)
+                for row in reader:
+                    if not orders_updated_after.last_value or int(row["order_id"]) > int(orders_updated_after.last_value):
+                        yield {**row,
+                              "ingestion_ts": datetime.now(timezone.utc).isoformat(),
+                              "src_filename": f"orders/{dt_folder}/order_lines.csv"}
 
     resources.append(orders_lines_incremental)
-    #resources.append(load_csv("sensors.csv", "sensors", create_sensor_columns))
-
     # Add new data sources if files exist
     for file_info in [
+        ("sensors.csv", "sensors", lambda: {
+            "sensor_ts": {"data_type": "timestamp", "nullable": True},
+            "store_id": {"data_type": "bigint"},  # Required field, non-nullable
+            "shelf_id": {"data_type": "text", "nullable": True},
+            "temperature_c": {"data_type": "double", "nullable": True},  # Using double instead of decimal for better compatibility
+            "humidity_pct": {"data_type": "double", "nullable": True},  # Using double instead of decimal for better compatibility
+            "battery_mv": {"data_type": "bigint", "nullable": True},
+            "ingestion_ts": {"data_type": "timestamp"},  # Required field, non-nullable
+            "src_filename": {"data_type": "text"}  # Required field, non-nullable
+        }, load_csv, {"file_format": "parquet"}),
+        # ("events.jsonl", "events", lambda: {
+        #     "json": {"data_type": "text", "nullable": True},
+        #     "ingestion_ts": {"data_type": "timestamp"},
+        #     "src_filename": {"data_type": "text"}
+        # }, load_csv),
         ("exchange_rates.xlsx", "exchange_rates", create_exchange_rate_columns, load_xlsx),
-        ("returns_base.parquet", "returns_base", create_returns_base_columns, load_parquet),
-        ("returns_evolved.parquet", "returns_evolved", create_returns_evolved_columns, load_parquet),
-        ("returns_upsert_delete.parquet", "returns_upsert", create_returns_upsert_columns, load_parquet),
+        ("returns/returns_base.csv", "returns_base", create_returns_base_columns, load_csv),
+        ("returns/returns_evolved.csv", "returns_evolved", create_returns_evolved_columns, load_csv),
         ("shipments.parquet", "shipments", create_shipments_columns, load_parquet)
     ]:
-        filename, resource_name, schema_func, loader_func = file_info
+        # Unpack with optional options
+        if len(file_info) == 5:
+            filename, resource_name, schema_func, loader_func, options = file_info
+        else:
+            filename, resource_name, schema_func, loader_func = file_info
+            options = None
         if os.path.exists(os.path.join(raw_path, filename)):
-            resources.append(loader_func(filename, resource_name, schema_func))
+            print(f"Loading {resource_name} from {filename}")
+            resource = loader_func(filename, resource_name, schema_func, options)
+            resources.append(resource)
         else:
             print(f"Warning: {filename} not found in {raw_path}, skipping...")
     
@@ -362,7 +490,7 @@ def retail_source(raw_path: str = "data_raw"):
 def write_rejects(failed_jobs):
     """Write failed records to rejects folder"""
     ensure_dir("lake/_rejects")
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    ts = datetime.now(timezone.utc).strftime("%Y%m%d_%H%M%S")
     
     for job in failed_jobs:
         resource_name = job.resource_name
@@ -375,45 +503,64 @@ def write_rejects(failed_jobs):
                     f.write(json.dumps({
                         "data": item.data,
                         "error": str(item.error),
-                        "timestamp": datetime.utcnow().isoformat()
+                        "timestamp": datetime.now(timezone.utc).isoformat()
                     }) + "\n")
             print(f"Written {len(failed_items)} failed records to {reject_file}")
 
 def run_bronze_pipeline():
-    # Create pipeline
-    pipeline = dlt.pipeline(
-        pipeline_name="retail_bronze",
+    # Ensure directories exist for both destinations
+    ensure_dir("lake/bronze/parquet")
+    ensure_dir("lake/bronze/dlt_storage")
+
+    # Create DuckDB pipeline with explicit schema loading
+    duckdb_pipeline = dlt.pipeline(
+        pipeline_name="retail_bronze_duckdb",
         destination=duckdb_dest,
         dataset_name="bronze"
     )
-    # Load to DuckDB
-    pipeline.drop()
-    load_info = pipeline.run(retail_source())
+    
+    # Ensure clean state by dropping existing tables
+    duckdb_pipeline.drop()
+    # Run with explicit configuration to ensure schema recreation
+    duckdb_info = duckdb_pipeline.run(
+        retail_source(),
+        write_disposition="replace"  # Force table recreation with new schema
+    )
     print("[DLT] DuckDB load_info:")
-    print(load_info)
+    print(duckdb_info)
     
-    # Handle failed records
-    for package in load_info.load_packages:
+    # Handle failed records for DuckDB
+    for package in duckdb_info.load_packages:
         if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-            # Write failed records to rejects folder
             write_rejects(package.jobs["failed_jobs"])
+
+    # Create separate Parquet pipeline with parquet file format
+    parquet_pipeline = dlt.pipeline(
+        pipeline_name="retail_bronze_parquet",
+        destination=parquet_dest,
+        dataset_name="bronze"
+    )
     
-    # Also write to Parquet
-    pipeline.destination = parquet_dest
-    parquet_info = pipeline.run(retail_source())
+    # Load to Parquet
+    parquet_pipeline.drop()
+    # Run with explicit configuration to ensure parquet output
+    parquet_info = parquet_pipeline.run(
+        retail_source(),
+        write_disposition="replace"  # Force table recreation with new schema
+    )
+    print("[DLT] Parquet load_info:")
+    print(parquet_info)
     
-    # Handle failed records for Parquet pipeline
+    # Handle failed records for Parquet
     for package in parquet_info.load_packages:
         if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-            # Write failed records to rejects folder
             write_rejects(package.jobs["failed_jobs"])
-    # Handle Delta format separately
-    #write_to_delta(pipeline.last_trace.last_extract_info)
     
 
 def run_parquet_pipeline():
-    # Ensure parquet directory exists
+    # Ensure directories exist
     ensure_dir("lake/bronze/parquet")
+    ensure_dir("lake/bronze/dlt_storage")
     
     # Create pipeline with parquet destination
     pipeline = dlt.pipeline(
@@ -425,26 +572,16 @@ def run_parquet_pipeline():
     # Drop existing data for clean slate
     pipeline.drop()
     
-    # Run the pipeline and capture load info
-    load_info = pipeline.run(retail_source(), loader_file_format="parquet")  #added this to specify parquet format; it doesn't work without it
+    # Run the pipeline and capture load info for Parquet
+    parquet_info = pipeline.run(retail_source(), loader_file_format="parquet")
     print("[DLT] Parquet load_info:")
-    print(load_info)
-    
-    # Handle any failed records
-    if hasattr(load_info, 'load_packages'):
-        for package in load_info.load_packages:
-            if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-                write_rejects(package.jobs["failed_jobs"])
-    
-    # Also write to Parquet
-    pipeline.destination = parquet_dest
-    parquet_info = pipeline.run(retail_source())
+    print(parquet_info)
     
     # Handle failed records for Parquet pipeline
-    for package in parquet_info.load_packages:
-        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-            # Write failed records to rejects folder
-            write_rejects(package.jobs["failed_jobs"])
+    if hasattr(parquet_info, 'load_packages'):
+        for package in parquet_info.load_packages:
+            if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
+                write_rejects(package.jobs["failed_jobs"])
 
 if __name__ == "__main__":
     run_bronze_pipeline()
