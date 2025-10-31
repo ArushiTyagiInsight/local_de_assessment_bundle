@@ -68,6 +68,14 @@ models:
       - name: temperature_status
         description: Status indicator for temperature readings
         data_type: varchar
+      - name: humidity_status
+        description: Status indicator for humidity readings
+        data_type: varchar
+      - name: gold_created_ts
+        description: Timestamp when the record was created in gold layer
+        data_type: timestamptz
+        tests:
+          - not_null
 
   - name: fct_shipments
     description: Fact table for shipment tracking and delivery SLA analysis

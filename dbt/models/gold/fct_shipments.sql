@@ -1,6 +1,6 @@
 {{ config(materialized='table') }}
 
-with fact_order_lines as (
+with fact_orders as (
     select * from {{ ref('fact_orders') }}
 ),
 -- Get distinct orders since shipping is at order level
@@ -15,7 +15,7 @@ distinct_orders as (
         shipping_fee_usd,
         has_quality_issues,
         all_quality_checks
-    FROM fact_order_lines
+    FROM fact_orders
 ),
 -- Calculate SLA metrics
 sla_calcs as (
