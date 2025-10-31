@@ -505,3 +505,124 @@ models:
 
   # Fact Tables
   
+  - name: fct_returns
+    description: Return facts with enriched customer and product dimensions. Each record represents a product return event.
+    config:
+      tags: ['gold', 'fact']
+    columns:
+      - name: return_id
+        description: Unique identifier for the return
+        tests:
+          - unique
+          - not_null
+      
+      - name: order_number
+        description: Reference to the original order
+        tests:
+          - not_null
+      
+      - name: product_id
+        description: Foreign key to dim_product_scd
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product_scd')
+              field: product_id
+      
+      - name: customer_id
+        description: Foreign key to dim_customer
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_customer')
+              field: customer_id
+      
+      - name: store_id
+        description: Foreign key to dim_store
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_store')
+              field: store_id
+      
+      - name: return_ts
+        description: Timestamp when the return was processed (UTC)
+        tests:
+          - not_null
+      
+      - name: return_date
+        description: Date when the return was processed (local)
+        tests:
+          - not_null
+      
+      - name: return_year
+        description: Year of return
+        tests:
+          - not_null
+      
+      - name: return_month
+        description: Month of return
+        tests:
+          - not_null
+      
+      - name: order_ts_utc
+        description: Original order timestamp (UTC)
+        tests:
+          - not_null
+      
+      - name: order_dt_local
+        description: Original order date (local)
+        tests:
+          - not_null
+      
+      - name: return_quantity
+        description: Number of units returned
+        tests:
+          - not_null
+          - positive_values
+      
+      - name: reason
+        description: Detailed return reason provided by customer
+      
+      - name: return_reason_code
+        description: Standardized return reason code
+        tests:
+          - accepted_values:
+              values: ['DEF', 'SIZE', 'STYLE', 'LATE', 'OTHER']
+      
+      - name: reason_category
+        description: Business-friendly categorization of return reasons
+        tests:
+          - accepted_values:
+              values: ['Defective', 'Wrong Size', 'Style/Preference', 'Late Delivery', 'Other', 'Unknown']
+      
+      - name: order_channel
+        description: Channel through which the original order was placed
+        tests:
+          - accepted_values:
+              values: ['web', 'mobile', 'store']
+      
+      - name: return_value
+        description: Estimated value of returned items in USD
+        tests:
+          - not_null
+      
+      - name: days_to_return
+        description: Number of days between order and return
+        tests:
+          - not_null
+          - positive_values
+      
+      - name: return_timeframe
+        description: Categorization of return timing
+        tests:
+          - accepted_values:
+              values: ['Within 7 days', 'Within 14 days', 'Within 30 days', 'Over 30 days']
+      
+      - name: has_quality_issues
+        description: Flag indicating if data quality issues were detected
+        tests:
+          - not_null
+      
+      - name: all_quality_checks
+        description: Details of any quality checks that failed
