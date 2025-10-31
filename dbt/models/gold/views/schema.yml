@@ -1,0 +1,206 @@
+version: 2
+
+models:
+  - name: vw_store_environmental_monitoring
+    description: Business-friendly view for monitoring store environmental conditions and sensor readings
+    config:
+      tags: ['gold', 'view', 'sensors', 'monitoring']
+    columns:
+      - name: measurement_time
+        description: Timestamp of the hourly measurement bucket
+      - name: measurement_date
+        description: Date of the measurement (truncated from timestamp)
+      - name: hour_of_day
+        description: Hour of the day (0-23)
+      - name: store_name
+        description: Name of the store
+      - name: store_region
+        description: Geographical region of the store
+      - name: store_type
+        description: Type/category of the store
+      - name: number_of_readings
+        description: Count of individual sensor readings in this hour
+      - name: average_temperature
+        description: Average temperature in Celsius for the hour
+      - name: average_humidity
+        description: Average humidity percentage for the hour
+      - name: minimum_temperature
+        description: Lowest temperature recorded in the hour
+      - name: maximum_temperature
+        description: Highest temperature recorded in the hour
+      - name: minimum_humidity
+        description: Lowest humidity recorded in the hour
+      - name: maximum_humidity
+        description: Highest humidity recorded in the hour
+      - name: temperature_condition
+        description: Status indicator for temperature (High/Low/Normal)
+      - name: humidity_condition
+        description: Status indicator for humidity (High/Low/Normal)
+      - name: environmental_status
+        description: Overall environmental status (Critical/Warning/Normal)
+      - name: temperature_24h_average
+        description: Rolling 24-hour average temperature
+      - name: humidity_24h_average
+        description: Rolling 24-hour average humidity
+      - name: battery_voltage
+        description: Average battery voltage in volts
+
+  - name: vw_sales_performance
+    description: Business-friendly view for analyzing sales performance across stores, products, and customers
+    config:
+      tags: ['gold', 'view', 'sales', 'performance']
+    columns:
+      - name: order_date
+        description: Local date of the order
+      - name: order_year
+        description: Year of the order
+      - name: order_month
+        description: Month of the order (1-12)
+      - name: store_name
+        description: Name of the store
+      - name: store_region
+        description: Geographical region of the store
+      - name: store_type
+        description: Type/category of the store
+      - name: sales_channel
+        description: Channel through which the sale was made (web/mobile/store)
+      - name: customer_segment
+        description: Customer segmentation category
+      - name: days_since_first_purchase
+        description: Number of days since customer's first purchase
+      - name: product_name
+        description: Name of the product
+      - name: product_category
+        description: Main category of the product
+      - name: product_subcategory
+        description: Sub-category of the product
+      - name: product_brand
+        description: Brand name of the product
+      - name: units_sold
+        description: Quantity of units sold
+      - name: unit_price
+        description: Price per unit in USD
+      - name: discount_percentage
+        description: Percentage discount applied
+      - name: discount_amount
+        description: Total discount amount in USD
+      - name: total_amount
+        description: Total sale amount in USD
+      - name: payment_method
+        description: Method of payment
+      - name: currency_code
+        description: Original currency of the transaction
+      - name: shipping_cost
+        description: Shipping fee in USD
+      - name: has_issues
+        description: Flag indicating if there were quality issues
+      - name: quality_notes
+        description: Detailed notes about any quality issues
+
+  - name: vw_shipping_performance
+    description: Business-friendly view for analyzing shipping performance and delivery metrics
+    config:
+      tags: ['gold', 'view', 'shipping', 'logistics']
+    columns:
+      - name: shipment_date
+        description: Date when the order was shipped
+      - name: delivery_date
+        description: Date when the order was delivered (null if not yet delivered)
+      - name: days_to_deliver
+        description: Number of days between shipment and delivery
+      - name: store_name
+        description: Name of the store
+      - name: store_region
+        description: Geographical region of the store
+      - name: store_type
+        description: Type/category of the store
+      - name: order_channel
+        description: Channel through which the order was placed
+      - name: shipping_carrier
+        description: Name of the shipping carrier
+      - name: customer_segment
+        description: Customer segmentation category
+      - name: current_status
+        description: Current shipment status (DELIVERED/IN_TRANSIT/UNKNOWN)
+      - name: is_delayed
+        description: Flag indicating if delivery exceeded SLA
+      - name: delivery_status
+        description: User-friendly delivery status
+      - name: shipping_cost
+        description: Cost of shipping in USD
+      - name: quality_notes
+        description: Notes about any data quality issues
+
+  - name: vw_customer_360
+    description: Comprehensive customer view with key metrics and segmentation for analytics
+    config:
+      tags: ['gold', 'view', 'customers', 'analytics']
+    columns:
+      - name: customer_id
+        description: Unique identifier for the customer
+      - name: customer_segment
+        description: Customer segmentation based on business rules
+      - name: customer_lifetime_days
+        description: Number of days since customer's first interaction
+      - name: total_orders
+        description: Total number of orders placed by the customer
+      - name: active_months
+        description: Number of unique months with orders
+      - name: avg_orders_per_active_month
+        description: Average orders per active month
+      - name: total_lifetime_spend
+        description: Total amount spent by customer in USD
+      - name: avg_order_value
+        description: Average order value for the customer
+      - name: first_order_date
+        description: Date of customer's first order
+      - name: last_order_date
+        description: Date of customer's most recent order
+      - name: days_since_last_order
+        description: Days elapsed since last order
+      - name: customer_status
+        description: Current status (Active/Recent/At Risk/Churned)
+      - name: customer_type
+        description: Customer classification (New/Returning Active/Returning Inactive)
+      - name: value_segment
+        description: Value-based segmentation (High/Medium/Low Value)
+
+  - name: vw_product_performance
+    description: Product performance analysis with sales and return metrics
+    config:
+      tags: ['gold', 'view', 'products', 'analytics']
+    columns:
+      - name: product_id
+        description: Unique identifier for the product
+      - name: product_name
+        description: Name of the product
+      - name: category
+        description: Main product category
+      - name: sub_category
+        description: Product sub-category
+      - name: brand
+        description: Product brand name
+      - name: total_orders
+        description: Total number of orders containing this product
+      - name: total_quantity_sold
+        description: Total units sold
+      - name: total_revenue
+        description: Total revenue generated in USD
+      - name: unique_customers
+        description: Number of unique customers who purchased this product
+      - name: avg_revenue_per_order
+        description: Average revenue per order for this product
+      - name: avg_quantity_per_order
+        description: Average quantity per order for this product
+      - name: total_returns
+        description: Number of return incidents
+      - name: returned_quantity
+        description: Total quantity returned
+      - name: return_rate_pct
+        description: Return rate as percentage of total quantity sold
+      - name: revenue_category
+        description: ABC categorization based on revenue
+      - name: return_risk
+        description: Return risk assessment (High/Medium/Low)
+      - name: product_status
+        description: Current product status (Active/Slowing/Inactive)
