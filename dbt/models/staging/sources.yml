@@ -20,3 +20,21 @@ sources:
             tests:
               - not_null
               - positive_value
+
+      - name: sensors
+        description: IoT sensor data from stores
+        columns:
+          - name: sensor_ts
+            description: Timestamp of the sensor reading
+          - name: store_id
+            description: Store identifier
+            tests:
+              - not_null
+          - name: shelf_id
+            description: Shelf identifier
+          - name: temperature_c
+            description: Temperature in Celsius
+          - name: humidity_pct
+            description: Humidity percentage
+          - name: battery_mv
+            description: Battery level in millivolts

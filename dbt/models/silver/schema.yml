@@ -282,6 +282,47 @@ models:
           - not_null
           - positive_values
 
+  - name: fact_sensors
+    description: Silver layer fact table for sensor readings with data quality checks
+    config:
+      tags: ['silver', 'sensors', 'fact']
+      contract:
+        enforced: true
+    columns:
+      - name: sensor_ts
+        description: Timestamp of the sensor reading
+        data_type: timestamptz
+        tests:
+          - not_null
+      - name: store_id
+        description: Foreign key to stores
+        data_type: bigint
+        tests:
+          - not_null
+      - name: shelf_id
+        description: Shelf identifier within store
+        data_type: varchar
+      - name: temperature_c
+        description: Temperature reading in Celsius
+        data_type: decimal(5,2)
+      - name: humidity_pct
+        description: Humidity reading in percentage
+        data_type: decimal(5,2)
+      - name: battery_mv
+        description: Battery level in millivolts
+        data_type: integer
+      - name: is_valid_reading
+        description: Flag indicating if reading passed quality checks
+        data_type: boolean
+        tests:
+          - not_null
+      - name: dbt_created_ts
+        description: Timestamp when record was created in staging
+        data_type: timestamptz
+      - name: silver_created_ts
+        description: Timestamp when record was created in silver
+        data_type: timestamptz
+
   - name: fact_returns
     description: Fact table for product returns with schema evolution support
     config:

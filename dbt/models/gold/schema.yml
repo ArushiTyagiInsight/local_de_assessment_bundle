@@ -1,6 +1,74 @@
 version: 2
 
 models:
+  - name: fct_sensor_readings
+    description: Gold layer fact table for hourly sensor readings with statistics and anomaly detection
+    config:
+      materialized: table
+      tags: ['gold', 'fact', 'sensors']
+      contract:
+        enforced: true
+    columns:
+      - name: reading_hour
+        description: Hour bucket for aggregated readings
+        data_type: timestamptz
+        tests:
+          - not_null
+      - name: store_id
+        description: Foreign key to stores
+        data_type: bigint
+        tests:
+          - not_null
+      - name: shelf_id
+        description: Shelf identifier within store
+        data_type: varchar
+      - name: readings_count
+        description: Number of readings in the hour
+        data_type: bigint
+        tests:
+          - not_null
+          - positive_value
+      - name: avg_temperature_c
+        description: Average temperature in Celsius for the hour
+        data_type: decimal(5,2)
+      - name: avg_humidity_pct
+        description: Average humidity percentage for the hour
+        data_type: decimal(5,2)
+      - name: avg_battery_mv
+        description: Average battery level in millivolts
+        data_type: decimal(10,2)
+      - name: min_temperature_c
+        description: Minimum temperature in Celsius
+        data_type: decimal(5,2)
+      - name: max_temperature_c
+        description: Maximum temperature in Celsius
+        data_type: decimal(5,2)
+      - name: min_humidity_pct
+        description: Minimum humidity percentage
+        data_type: decimal(5,2)
+      - name: max_humidity_pct
+        description: Maximum humidity percentage
+        data_type: decimal(5,2)
+      - name: rolling_24h_avg_temp
+        description: 24-hour rolling average temperature
+        data_type: decimal(5,2)
+      - name: rolling_24h_avg_humidity
+        description: 24-hour rolling average humidity
+        data_type: decimal(5,2)
+      - name: is_temperature_anomaly
+        description: Flag indicating temperature outside normal range
+        data_type: boolean
+        tests:
+          - not_null
+      - name: is_humidity_anomaly
+        description: Flag indicating humidity outside normal range
+        data_type: boolean
+        tests:
+          - not_null
+      - name: temperature_status
+        description: Status indicator for temperature readings
+        data_type: varchar
+
   - name: fct_shipments
     description: Fact table for shipment tracking and delivery SLA analysis
     config:

@@ -12,3 +12,9 @@ select * from read_parquet('{{ lake_root }}/parquet/bronze/stores/*.parquet');
 
 create or replace view bronze_stores_delta as
 select * from delta_scan('{{ lake_root }}/delta/stores');
+
+create or replace view bronze_sensors_parquet as
+select * from read_parquet('{{ lake_root }}/parquet/bronze/sensors/*.parquet');
+
+create or replace view bronze_sensors_delta as
+select * from delta_scan('{{ lake_root }}/delta/sensors');

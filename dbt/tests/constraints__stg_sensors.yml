@@ -1,0 +1,23 @@
+version: 2
+models:
+  - name: stg_sensors
+    config:
+      contract:
+        enforced: true
+    columns:
+      - name: sensor_ts
+        data_type: timestamptz
+      - name: store_id
+        data_type: bigint
+        constraints:
+          - type: not_null
+      - name: shelf_id
+        data_type: varchar
+      - name: temperature_c
+        data_type: decimal(5,2)
+      - name: humidity_pct
+        data_type: decimal(5,2)
+      - name: battery_mv
+        data_type: varchar
+      - name: dbt_created_ts
+        data_type: timestamptz
