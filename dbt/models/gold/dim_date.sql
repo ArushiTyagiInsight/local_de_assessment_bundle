@@ -5,14 +5,13 @@
     )
 }}
 
-WITH date_dimension AS (
+WITH RECURSIVE date_dimension AS (
     -- Generate date series from 2020 to 2030
-    SELECT date::DATE as date_id
-    FROM GENERATE_SERIES(
-        '2020-01-01'::DATE,
-        '2030-12-31'::DATE,
-        INTERVAL '1 day'
-    ) AS date
+    SELECT DATE '2020-01-01' AS date_id
+    UNION ALL
+    SELECT date_id + INTERVAL '1 day'
+    FROM date_dimension
+    WHERE date_id < DATE '2030-12-31'
 ),
 
 date_attributes AS (
@@ -24,16 +23,16 @@ date_attributes AS (
         EXTRACT(DAY FROM date_id) AS day,
         
         -- Date formats
-        TO_CHAR(date_id, 'YYYY-MM-DD') AS date_string,
-        TO_CHAR(date_id, 'Month') AS month_name,
-        TO_CHAR(date_id, 'Mon') AS month_short_name,
-        TO_CHAR(date_id, 'Day') AS day_name,
-        TO_CHAR(date_id, 'Dy') AS day_short_name,
+        strftime(date_id, '%Y-%m-%d') AS date_string,
+        strftime(date_id, '%B') AS month_name,
+        strftime(date_id, '%b') AS month_short_name,
+        strftime(date_id, '%A') AS day_name,
+        strftime(date_id, '%a') AS day_short_name,
         
         -- ISO week information
         EXTRACT(ISOYEAR FROM date_id) AS iso_year,
         EXTRACT(WEEK FROM date_id) AS iso_week_number,
-        TO_CHAR(date_id, 'IYYY-IW') AS iso_week_id,
+        strftime(date_id, '%Y-W%W') AS iso_week_id,
         
         -- Quarter information
         EXTRACT(QUARTER FROM date_id) AS quarter_number,
@@ -73,12 +72,12 @@ date_attributes AS (
         END AS fiscal_year,
         
         -- Fiscal Quarter
-        'FQ' || TO_CHAR(
+        'FQ' || CAST(
             CASE 
                 WHEN EXTRACT(MONTH FROM date_id) >= 7 
                 THEN EXTRACT(MONTH FROM date_id) - 6 
                 ELSE EXTRACT(MONTH FROM date_id) + 6 
-            END / 3.0, 'FM1') || ' ' || 
+            END / 3.0 AS INTEGER) || ' ' || 
         CASE 
             WHEN EXTRACT(MONTH FROM date_id) >= 7 
             THEN EXTRACT(YEAR FROM date_id) + 1 
@@ -95,36 +94,36 @@ date_attributes AS (
         -- Holiday indicators
         CASE
             -- Australian Holidays
-            WHEN TO_CHAR(date_id, 'MM-DD') = '01-26' THEN 'AU: Australia Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '04-25' THEN 'AU: ANZAC Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '12-25' THEN 'AU/UK/US: Christmas Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '12-26' THEN 'AU/UK: Boxing Day'
+            WHEN strftime(date_id, '%m-%d') = '01-26' THEN 'AU: Australia Day'
+            WHEN strftime(date_id, '%m-%d') = '04-25' THEN 'AU: ANZAC Day'
+            WHEN strftime(date_id, '%m-%d') = '12-25' THEN 'AU/UK/US: Christmas Day'
+            WHEN strftime(date_id, '%m-%d') = '12-26' THEN 'AU/UK: Boxing Day'
             
             -- UK Holidays
-            WHEN TO_CHAR(date_id, 'MM-DD') = '01-01' THEN 'UK/US: New Year''s Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '05-01' THEN 'UK: Early May Bank Holiday'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '08-28' THEN 'UK: Summer Bank Holiday'
+            WHEN strftime(date_id, '%m-%d') = '01-01' THEN 'UK/US: New Year''s Day'
+            WHEN strftime(date_id, '%m-%d') = '05-01' THEN 'UK: Early May Bank Holiday'
+            WHEN strftime(date_id, '%m-%d') = '08-28' THEN 'UK: Summer Bank Holiday'
             
             -- US Holidays
-            WHEN TO_CHAR(date_id, 'MM-DD') = '07-04' THEN 'US: Independence Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '11-11' THEN 'US: Veterans Day'
-            WHEN TO_CHAR(date_id, 'MM-DD') = '11-24' THEN 'US: Thanksgiving'
+            WHEN strftime(date_id, '%m-%d') = '07-04' THEN 'US: Independence Day'
+            WHEN strftime(date_id, '%m-%d') = '11-11' THEN 'US: Veterans Day'
+            WHEN strftime(date_id, '%m-%d') = '11-24' THEN 'US: Thanksgiving'
             
             ELSE NULL
         END AS holiday_name,
         
         CASE
-            WHEN TO_CHAR(date_id, 'MM-DD') IN ('01-26', '04-25', '12-25', '12-26') THEN TRUE
+            WHEN strftime(date_id, '%m-%d') IN ('01-26', '04-25', '12-25', '12-26') THEN TRUE
             ELSE FALSE
         END AS is_holiday_au,
         
         CASE
-            WHEN TO_CHAR(date_id, 'MM-DD') IN ('01-01', '05-01', '08-28', '12-25', '12-26') THEN TRUE
+            WHEN strftime(date_id, '%m-%d') IN ('01-01', '05-01', '08-28', '12-25', '12-26') THEN TRUE
             ELSE FALSE
         END AS is_holiday_uk,
         
         CASE
-            WHEN TO_CHAR(date_id, 'MM-DD') IN ('01-01', '07-04', '11-11', '11-24', '12-25') THEN TRUE
+            WHEN strftime(date_id, '%m-%d') IN ('01-01', '07-04', '11-11', '11-24', '12-25') THEN TRUE
             ELSE FALSE
         END AS is_holiday_us,
         
