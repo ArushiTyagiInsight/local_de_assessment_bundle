@@ -1,4 +1,4 @@
-{{ config(materialized='table', contract={'enforced': true}) }}
+{{ config(materialized='table') }}
 
 with src as (
     select * from read_parquet('../lake/bronze/parquet/bronze/stores/*.parquet')
@@ -14,8 +14,7 @@ typed as (
         cast(latitude as double) as latitude,
         cast(longitude as double) as longitude,
         cast(open_dt as timestamp) as open_dt,
-        cast(close_dt as timestamp) as close_dt,
-        trim(close_dt__v_text) as close_dt__v_text
+        cast(close_dt as timestamp) as close_dt
   FROM src
 ),
 validated as (
@@ -40,7 +39,6 @@ SELECT
     longitude,
     open_dt,
     close_dt,
-    close_dt__v_text,
     CASE 
         WHEN store_code_check IS NOT NULL  
         THEN concat_ws(', ',

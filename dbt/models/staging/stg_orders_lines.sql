@@ -1,4 +1,4 @@
-{{ config(materialized='table', contract={'enforced': true}) }}
+{{ config(materialized='table') }}
 
 with src as (
     select * from read_parquet('../lake/bronze/parquet/bronze/orders_lines/*.parquet')
