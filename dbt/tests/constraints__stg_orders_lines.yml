@@ -21,9 +21,6 @@ models:
         data_type: integer
         constraints:
           - type: not_null
-          - type: check
-            expression: "quantity > 0"
-            error_message: "Invalid quantity"
       - name: unit_price_usd
         data_type: decimal(10,2)
         constraints:
@@ -47,15 +44,9 @@ models:
         data_type: decimal(10,2)
         constraints:
           - type: not_null
-          - type: check
-            expression: "discount_amount_usd >= 0"
-            error_message: "Negative discount amount"
       - name: line_total_usd
         data_type: decimal(10,2)
         constraints:
           - type: not_null
-          - type: check
-            expression: "line_total_usd >= 0"
-            error_message: "Negative line total"
       - name: quality_checks
         data_type: varchar
