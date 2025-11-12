@@ -169,38 +169,106 @@ models:
     description: Product performance analysis with sales and return metrics
     config:
       tags: ['gold', 'view', 'products', 'analytics']
+    tests:
+      - dbt_utils.expression_is_true:
+          expression: "(returned_quantity IS NULL) OR (total_quantity_sold IS NULL) OR (total_quantity_sold >= returned_quantity)"
+          severity: warn
+          config:
+            store_failures: true
+      - dbt_utils.expression_is_true:
+          expression: "return_rate_pct IS NULL OR return_rate_pct <= 100"
+          severity: warn
+          config:
+            store_failures: true
+      - dbt_utils.unique_combination_of_columns:
+          combination_of_columns:
+            - product_id
     columns:
       - name: product_id
         description: Unique identifier for the product
+        tests:
+          - not_null
+          - relationships:
+              to: ref('dim_product_scd')
+              field: product_id
       - name: product_name
         description: Name of the product
+        tests:
+          - not_null
       - name: category
         description: Main product category
+        tests:
+          - not_null
       - name: sub_category
         description: Product sub-category
-      - name: brand
-        description: Product brand name
+        tests:
+          - not_null
       - name: total_orders
         description: Total number of orders containing this product
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "total_orders IS NOT NULL AND total_orders >= 0"
       - name: total_quantity_sold
         description: Total units sold
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "total_quantity_sold IS NOT NULL AND total_quantity_sold >= 0"
       - name: total_revenue
         description: Total revenue generated in USD
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "total_revenue IS NOT NULL AND total_revenue >= 0"
       - name: unique_customers
         description: Number of unique customers who purchased this product
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "unique_customers IS NOT NULL AND unique_customers >= 0"
       - name: avg_revenue_per_order
         description: Average revenue per order for this product
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "avg_revenue_per_order IS NULL OR avg_revenue_per_order >= 0"
       - name: avg_quantity_per_order
         description: Average quantity per order for this product
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "avg_quantity_per_order IS NULL OR avg_quantity_per_order >= 0"
       - name: total_returns
         description: Number of return incidents
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "total_returns >= 0"
       - name: returned_quantity
         description: Total quantity returned
+        tests:
+          - not_null
+          - dbt_utils.expression_is_true:
+              expression: "returned_quantity >= 0"
       - name: return_rate_pct
         description: Return rate as percentage of total quantity sold
+        tests:
+          - dbt_utils.expression_is_true:
+              expression: "return_rate_pct IS NULL OR (return_rate_pct >= 0 AND return_rate_pct <= 100)"
+              severity: warn
+              config:
+                store_failures: true
       - name: revenue_category
         description: ABC categorization based on revenue
+        tests:
+          - accepted_values:
+              values: ['A', 'B', 'C']
       - name: return_risk
         description: Return risk assessment (High/Medium/Low)
+        tests:
+          - accepted_values:
+              values: ['High', 'Medium', 'Low']
       - name: product_status
         description: Current product status (Active/Slowing/Inactive)
+        tests:
+          - accepted_values:
+              values: ['Active', 'Slowing', 'Inactive']

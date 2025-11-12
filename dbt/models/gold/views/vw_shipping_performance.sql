@@ -19,6 +19,9 @@ WITH shipment_details AS (
 )
 
 SELECT
+    -- Primary Key
+    shipment_id,
+    
     -- Time Dimension
     shipment_ts_utc as shipment_date,
     shipment_dt_local as local_ship_date,
