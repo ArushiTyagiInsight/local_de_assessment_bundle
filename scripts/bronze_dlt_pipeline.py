@@ -5,6 +5,9 @@ import pyarrow as pa
 import csv
 import os
 import sys
+import logging
+
+logging.basicConfig(filename='bronze_data_quality.log', level=logging.INFO)
 import json
 import pandas as pd
 sys.path.append(os.path.abspath(os.path.join(os.path.dirname(__file__), '..')))
@@ -248,6 +251,9 @@ def retail_source(raw_path: str = "data_raw"):
         def load_data():
             file_path = os.path.join(raw_path, filename)
             count = 0
+            rejected = 0
+            start_time = datetime.now()
+            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
             with open(file_path, newline='') as csvfile:
                 reader = csv.DictReader(csvfile)
                 for row in reader:
@@ -266,11 +272,17 @@ def retail_source(raw_path: str = "data_raw"):
                         else:
                             processed_row[key] = value
                     
+                    # Example rejection logic: count missing required fields
+                    if any(v is None for k, v in processed_row.items() if k != 'sensor_ts'):
+                        rejected += 1
                     count += 1
                     yield {**processed_row, 
                           "ingestion_ts": datetime.now(timezone.utc),
                           "src_filename": filename}
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
             print(f"Loaded {count} rows from {filename}")
+            logging.info(f"Table: {resource_name} | Rows Processed: {count} | Rows Rejected: {rejected} | Processing Time (s): {processing_time} | File Size (bytes): {file_size} | Source: {filename}")
         return load_data
 
     def load_jsonl(filename, resource_name, schema_func, options=None):
@@ -287,14 +299,23 @@ def retail_source(raw_path: str = "data_raw"):
         def load_data():
             file_path = os.path.join(raw_path, filename)
             count = 0
+            rejected = 0
+            start_time = datetime.now()
+            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
             with open(file_path, 'r', encoding='utf-8') as f:
                 for line in f:
-                    count += 1
                     data = json.loads(line)
+                    # Example rejection logic: count missing required fields
+                    if any(v is None for v in data.values()):
+                        rejected += 1
+                    count += 1
                     yield {**data,
                           "ingestion_ts": datetime.now(timezone.utc),
                           "src_filename": filename}
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
             print(f"Loaded {count} rows from {filename}")
+            logging.info(f"Table: {resource_name} | Rows Processed: {count} | Rows Rejected: {rejected} | Processing Time (s): {processing_time} | File Size (bytes): {file_size} | Source: {filename}")
         return load_data
 
     def load_xlsx(filename, resource_name, schema_func, options=None, sheet_name=0):
@@ -311,6 +332,8 @@ def retail_source(raw_path: str = "data_raw"):
         @dlt.resource(**resource_config)
         def load_data():
             file_path = os.path.join(raw_path, filename)
+            start_time = datetime.now()
+            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
             # Read Excel file into pandas DataFrame
             df = pd.read_excel(file_path, sheet_name=sheet_name)
             # For exchange rates, pivot the data to get currency as a column value
@@ -318,13 +341,20 @@ def retail_source(raw_path: str = "data_raw"):
                 df_melted = df.melt(id_vars=['date'], var_name='currency', value_name='rate')
                 df = df_melted
             count = 0
+            rejected = 0
             # Convert to dict records and yield
             for record in df.to_dict('records'):
+                # Example rejection logic: count missing required fields
+                if any(v is None for v in record.values()):
+                    rejected += 1
                 count += 1
                 yield {**record,
                       "ingestion_ts": datetime.now(timezone.utc),
                       "src_filename": filename}
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
             print(f"Loaded {count} rows from {filename}")
+            logging.info(f"Table: {resource_name} | Rows Processed: {count} | Rows Rejected: {rejected} | Processing Time (s): {processing_time} | File Size (bytes): {file_size} | Source: {filename}")
         return load_data
 
     def load_parquet(filename, resource_name, schema_func, options=None):
@@ -341,16 +371,25 @@ def retail_source(raw_path: str = "data_raw"):
         @dlt.resource(**resource_config)
         def load_data():
             file_path = os.path.join(raw_path, filename)
+            start_time = datetime.now()
+            file_size = os.path.getsize(file_path) if os.path.exists(file_path) else 0
             # Read Parquet file into pandas DataFrame
             df = pd.read_parquet(file_path)
             count = 0
+            rejected = 0
             # Convert to dict records and yield
             for record in df.to_dict('records'):
+                # Example rejection logic: count missing required fields
+                if any(v is None for v in record.values()):
+                    rejected += 1
                 count += 1
                 yield {**record,
                       "ingestion_ts": datetime.now(timezone.utc),
                       "src_filename": filename}
+            end_time = datetime.now()
+            processing_time = (end_time - start_time).total_seconds()
             print(f"Loaded {count} rows from {filename}")
+            logging.info(f"Table: {resource_name} | Rows Processed: {count} | Rows Rejected: {rejected} | Processing Time (s): {processing_time} | File Size (bytes): {file_size} | Source: {filename}")
         return load_data
 
     # Define all resources
@@ -508,6 +547,7 @@ def write_rejects(failed_jobs):
             print(f"Written {len(failed_items)} failed records to {reject_file}")
 
 def run_bronze_pipeline():
+
     # Ensure directories exist for both destinations
     ensure_dir("lake/bronze/parquet")
     ensure_dir("lake/bronze/dlt_storage")
@@ -518,7 +558,7 @@ def run_bronze_pipeline():
         destination=duckdb_dest,
         dataset_name="bronze"
     )
-    
+
     # Ensure clean state by dropping existing tables
     duckdb_pipeline.drop()
     # Run with explicit configuration to ensure schema recreation
@@ -528,11 +568,6 @@ def run_bronze_pipeline():
     )
     print("[DLT] DuckDB load_info:")
     print(duckdb_info)
-    
-    # Handle failed records for DuckDB
-    for package in duckdb_info.load_packages:
-        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-            write_rejects(package.jobs["failed_jobs"])
 
     # Create separate Parquet pipeline with parquet file format
     parquet_pipeline = dlt.pipeline(
@@ -540,7 +575,7 @@ def run_bronze_pipeline():
         destination=parquet_dest,
         dataset_name="bronze"
     )
-    
+
     # Load to Parquet
     parquet_pipeline.drop()
     # Run with explicit configuration to ensure parquet output
@@ -550,11 +585,6 @@ def run_bronze_pipeline():
     )
     print("[DLT] Parquet load_info:")
     print(parquet_info)
-    
-    # Handle failed records for Parquet
-    for package in parquet_info.load_packages:
-        if hasattr(package, 'jobs') and package.jobs.get("failed_jobs"):
-            write_rejects(package.jobs["failed_jobs"])
     
 
 def run_parquet_pipeline():
