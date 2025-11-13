@@ -1,0 +1,34 @@
+version: 2
+
+models:
+  - name: stg_data_quality_log
+    description: "Staging model for audit log data from bronze_data_quality.log"
+    columns:
+      - name: log_timestamp
+        description: "Timestamp of the audit log entry"
+        tests:
+          - not_null
+      - name: table_name
+        description: "Name of the source table processed"
+        tests:
+          - not_null
+      - name: rows_processed
+        description: "Number of rows processed for the table"
+        tests:
+          - not_null
+          - greater_than: {value: 0}
+      - name: rows_rejected
+        description: "Number of rows rejected for the table"
+        tests:
+          - not_null
+          - greater_than_equal_to: {value: 0}
+      - name: processing_time_seconds
+        description: "Time taken to process the file (seconds)"
+        tests:
+          - not_null
+          - greater_than_equal_to: {value: 0}
+      - name: file_size_bytes
+        description: "Size of the processed file in bytes"
+        tests:
+          - not_null
+          - greater_than_equal_to: {value: 0}
