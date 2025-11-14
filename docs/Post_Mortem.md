@@ -52,6 +52,9 @@ Learning to write data to duckdb and then getting to know a tool to read it was 
 
 I have skipped the delivery of delta lake format of data load as that was more of a value add rather than actual delivery expectation.
 
+### Audit dashboard
+I have pulled the data for audit that involves number of rows processed, number of rows rejected, bytes processed, file name and time taken for processing. However the information is quite less to make much sense in a dashboard so i have only pulled it into different stages of ingestion.
+
 ### Overall Assessment Thoughts
 
 I am quite happy to attempt this assessment and it involved an end to end data engineering task - starting from generating raw data with anomalies to loading it through different stages of data flow and developing reports on top of it. The versitality in data source formats provides good exposure to handling different data sources and bringing them together into the same format. Partitining of source data is another good angle provided in this assessment as that structre is commonly seen while working with a client.
